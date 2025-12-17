@@ -1,6 +1,18 @@
 #ifndef STUDENT_H
 #define STUDENT_H
 
+#define HASH_SIZE 101
+
+typedef struct HashNode {
+    Student_t* p_student;
+    struct HashNode* p_next;
+} HashNode_t;
+
+typedef struct {
+    int size;
+    HashNode_t** p_buckets;
+} Hashtable_t;
+
 typedef struct {
     int id;
     char name[50];
@@ -17,5 +29,7 @@ int getData(Student_t* s_ptr, int n);
 int writeData(Student_t* s_ptr, int n, const char* filename);
 Pair_t readData(const char* filename);
 int displayData(const Student_t* s_ptr, int count);
+int hash_function(int id);
+int insert_to_hash(Student_t* s_ptr, int n, Hashtable_t* hp);
 
 #endif

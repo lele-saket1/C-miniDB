@@ -135,3 +135,25 @@ int displayData (const Student_t* s_ptr, int count) {     //function to display 
 
     return 0; 
 }
+
+int hash_function(int id) {
+
+    return (id >= 0) ? (id % HASH_SIZE) : (-id % HASH_SIZE);
+}
+
+int insert_to_hash(const Student_t* s_ptr, int n, Hashtable_t* hp) {
+    for (int i = 0; i < n; i++) {
+        int idx = hash_function((s_ptr + i)->id);
+        
+        HashNode_t* new_node_ptr = (HashNode_t *)malloc(sizeof(HashNode_t));
+        if (!new_node_ptr) {
+            
+            return -1;
+        }
+
+        new_node_ptr->p_student = (Student_t*)(s_ptr + i);
+        new_node_ptr->p_next = *(hp->p_buckets + idx);
+        *(hp->p_buckets + idx) = new_node_ptr;
+    }
+    return 0;
+}
