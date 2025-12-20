@@ -1,35 +1,34 @@
 #ifndef STUDENT_H
 #define STUDENT_H
 
-#define HASH_SIZE 101
-
-typedef struct HashNode {
-    Student_t* p_student;
-    struct HashNode* p_next;
-} HashNode_t;
-
-typedef struct {
-    int size;
-    HashNode_t** p_buckets;
-} Hashtable_t;
-
+//Student_t struct (instance of a student)
 typedef struct {
     int id;
     char name[50];
     float gpa;
 } Student_t;
 
-typedef struct {    //Pair_t struct to allow returning of 2 values from the readData function
-    int count;      //i.e, the number of records in the persistant file (number of lines)
-    Student_t* ptr; //and a pointer to the first byte of memory malloc'd by the readData function, now containing all the data read from the files.
+//Pair_t struct for dual return values
+typedef struct {    
+    int count;      //representative of number of records in persistent file
+    Student_t* ptr; //pointer pointing to the block of memory on heap, storing student data after reading
 } Pair_t;
 
-//prototypes for basic functions:
+//Prototypes for Basic Functions
 int getData(Student_t* s_ptr, int n); 
+
 int writeData(Student_t* s_ptr, int n, const char* filename);
+
 Pair_t readData(const char* filename);
+
 int displayData(const Student_t* s_ptr, int count);
-int hash_function(int id);
-int insert_to_hash(Student_t* s_ptr, int n, Hashtable_t* hp);
+
+void clear_input_buffer(void);
+
+int compare_gpa(const void* a, const void* b);
+
+Student_t* sort(const Student_t* s_ptr, int count);
+
+int (*cmp_ptr) (const void* a, const void* b)
 
 #endif

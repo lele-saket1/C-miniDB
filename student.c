@@ -136,24 +136,27 @@ int displayData (const Student_t* s_ptr, int count) {     //function to display 
     return 0; 
 }
 
-int hash_function(int id) {
+int compare_gpa(const void* a, const void* b) {     //callback function for qsort
 
-    return (id >= 0) ? (id % HASH_SIZE) : (-id % HASH_SIZE);
+    Student_t* A = (Student_t *)a;
+    Student_t* B = (Student_t *)b;
+
+    if (A->gpa > B->gpa) {
+        return -1;
+    }
+    else if (A->gpa < B->gpa) {
+        return 1;
+    }
+    
+    return 0;
 }
 
-int insert_to_hash(const Student_t* s_ptr, int n, Hashtable_t* hp) {
-    for (int i = 0; i < n; i++) {
-        int idx = hash_function((s_ptr + i)->id);
-        
-        HashNode_t* new_node_ptr = (HashNode_t *)malloc(sizeof(HashNode_t));
-        if (!new_node_ptr) {
-            
-            return -1;
-        }
-
-        new_node_ptr->p_student = (Student_t*)(s_ptr + i);
-        new_node_ptr->p_next = *(hp->p_buckets + idx);
-        *(hp->p_buckets + idx) = new_node_ptr;
+Student_t* sort(Student_t* s_ptr, int count) {
+    if (!s_ptr) {
+        return NULL;
     }
-    return 0;
+
+    qsort(s_ptr, count, sizeof(Student_t), compare_gpa);
+
+    return s_ptr;
 }

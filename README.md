@@ -1,3 +1,4 @@
+
 # C-miniDB: A Student Record Manager
 
 ## Overview
@@ -6,51 +7,46 @@ This project is a command-line student database manager built from scratch in C.
 
 ## Version History
 
-### Commit 2: The Indexing Update (Current)
+### Commit 3: The Search & Sort Update (Current)
+
+* **High-Performance Search:** Implemented a targeted  lookup function using the hash table index to retrieve student records by ID.
+* **Generic Sorting Engine:** Integrated the C Standard Library's `qsort` to reorder the master record array by GPA.
+* **Abstraction via Callbacks:** Leveraged function pointers and custom comparator logic to handle floating-point precision during descending GPA sorts.
+* **Defensive Programming:** Hardened search and sort functions with NULL-pointer checks and memory-safety guards.
+
+### Commit 2: The Indexing Update
+
 * **Hash Table Implementation:** Introduced a `Hashtable_t` structure to manage student records in memory.
 * **Collision Resolution:** Implemented **Separate Chaining** using linked lists (`HashNode_t`) to handle hash collisions effectively.
-* **Bulk Indexing:** Added `insert_to_hash` to "hydrate" the hash table immediately after loading data from the disk, enabling potential $O(1)$ lookups.
-* **Memory Safety:** Refined memory management to ensure all dynamically allocated buckets and nodes are properly freed upon exit.
+* **Bulk Indexing:** Added `insert_to_hash` to "hydrate" the hash table immediately after loading data from disk.
 
 ### Commit 1: The Foundation
+
 * **Core Data Structure:** Defined the `Student_t` struct (ID, Name, GPA) to serve as the primary in-memory record format.
-* **CSV File Handling:** Implemented `readData` and `writeData` to handle persistence using a comma-separated text format (`Students.txt`). 
-* **Input Validation:** Created `getData` with input buffer clearing logic to safely handle user input and prevent buffer overflows.
-* **Dynamic Loading:** Engineered the file parser to count records first, allocate exact heap memory, and then populate the array in a single execution flow using `rewind()`.
+* **CSV File Handling:** Implemented `readData` and `writeData` to handle persistence using a comma-separated text format.
+* **Dynamic Loading:** Engineered a two-pass file parser to count records and allocate exact heap memory.
 
----
-
-## Core Features
-
-* **Structured Data:** Utilizes a `Student_t` struct for a clean and efficient in-memory representation of student records.
-* **Dynamic Allocation:** Implements `malloc()` and `calloc()` to dynamically handle the student record array and hash buckets at runtime.
-* **Persistent Storage:** Reads from and writes structured data to a flat file (`Students.txt`), ensuring data persistence between sessions.
-* **Fast Indexing:** Uses a custom hash function to map Student IDs to memory addresses, preparing the system for instant search and retrieval.
 
 ## Key Engineering Decisions
 
-A core focus of this project is writing efficient, high-performance C code, inspired by principles used in systems and embedded programming.
+### 1. Inversion of Control (Sorting)
 
-### 1. Single-Pass File Processing
-To minimize OS overhead, the `readData` function is designed to perform all file I/O in a single, efficient pass. It avoids redundant open/close operations by using `rewind()` after counting records, ensuring minimal latency.
+Instead of hard-coding a specific sorting algorithm, I utilized the `qsort` library with a custom callback function. This demonstrates an understanding of **Inversion of Control** and interfacing with standard system APIs, allowing the library to handle high-performance partitioning while I define the comparison logic for `Student_t` structs.
 
-### 2. Head-Insertion for Hashing
-To optimize the `insert_to_hash` function, I utilized **Head Insertion** for the linked list chains. This guarantees $O(1)$ insertion time regardless of the chain length, avoiding the $O(n)$ penalty of traversing to the tail.
+### 2.  Indexing via Hashing
 
-### 3. Deterministic Memory Allocation
-I intentionally avoided using `realloc()` for building the primary data array. Instead, memory is allocated **precisely once** with `malloc()` after the total number of records is determined, ensuring predictable performance.
+The system maintains a primary data array on the heap for persistent storage while building a separate Hash Table of pointers for indexing. This dual-structure approach allows for  search performance without sacrificing the ability to perform linear operations like sorting or filtering on the main array.
 
----
+### 3. Memory Safety & Destructor Patterns
 
-## Future Roadmap (The Vision)
+The project follows a strict "allocation must have a corresponding free" philosophy. The cleanup phase in `main.c` traverses the entire hash structure to free nodes and buckets before releasing the master data array, ensuring zero memory leaks as verified by standard testing practices.
 
-The immediate next steps are to transform this backend engine into a fully interactive user application:
 
-1.  **Interactive Menu System:** Implement a `while(1)` loop in `main.c` to handle user commands (INPUT, VIEW, SEARCH, DELETE, EXIT).
-2.  **Search ($O(1)$):** Implement `search_student(id)` to retrieve records instantly using the Hash Table.
-3.  **Delete:** Implement `delete_student(id)` to remove specific nodes from the hash chains and mark records for deletion.
-4.  **Sorting:** Implement `sort_students()` to generate a sorted view (by GPA or Name) using an auxiliary array of pointers.
-5.  **State Overwrite:** Update the file saving logic to **overwrite** `Students.txt` with the current hash table state upon exit, ensuring deletions and updates are persisted.
+## Future Roadmap
+
+1. **Interactive Menu System:** Implement a `while(1)` loop to handle user commands (INPUT, VIEW, SEARCH, DELETE, EXIT).
+2. **State Persistence (Flush):** Update the file saving logic to overwrite `Students.txt` with the current RAM state upon exit.
+3. **Advanced Deletion:** Implement node removal from the hash chain with pointer reassignment.
 
 ## Build and Run
 
