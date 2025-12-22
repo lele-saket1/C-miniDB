@@ -18,11 +18,17 @@ typedef struct {              //defining instance of hash table:
 } Hashtable_t;
 
 //Hash Functions:
+
+//function to calculate hash index:
 int hash_function(int id);
+
+//function to initialize the hash table:
 Hashtable_t* hashtable_init(void);
 int insert_to_hash(Student_t* s_ptr, int n, Hashtable_t* ht);
 
 //function for search functionality:
 Student_t* search_student(Hashtable_t* ht, int id); 
 
+//function to delete student hash table:
+int delete_student_from_hash(Hashtable_t* ht, int id);
 #endif

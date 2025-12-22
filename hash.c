@@ -40,9 +40,9 @@ int insert_to_hash(Student_t* s_ptr, int n, Hashtable_t* ht) {      //insert fro
             return -1;
         }
 
-        new_node->p_student = (s_ptr + i);  
+        new_node->p_student = (s_ptr + i);      //assigning student record to insert into the hash table, to the node
         
-        new_node->p_next = *(ht->p_buckets + idx);      //head insertion
+        new_node->p_next = *(ht->p_buckets + idx);      //inserting new_node at the head
         *(ht->p_buckets + idx) = new_node;
     }
     return 0;
@@ -56,12 +56,42 @@ Student_t* search_student(Hashtable_t* ht, int id) {     //search for students b
     int idx = hash_function(id);
     HashNode_t* ptr = *(ht->p_buckets + idx);
 
-    while (ptr->p_next) {
+    while (ptr) {
         if (ptr->p_student->id == id) {
             return ptr->p_student;
         }
-        ptr++;
+        ptr = ptr->p_next;
     }
 
     return NULL;
+}
+
+int delete_student_from_hash (Hashtable_t* ht, int id) {    //function to delete student record with given id from hash table
+    if (!ht) {
+        return -1;
+    }
+
+    int idx = hash_function(id);
+    HashNode_t* current = *(ht->p_buckets + idx);
+    HashNode_t* prev = NULL;
+
+    while (current) {
+        if (current->p_student->id == id) {
+            current->p_student->id = -1;     //marking the tombstone for the original student array
+            
+            if (prev == NULL && current == *(ht->p_buckets + idx)) {    //if the node with student record with matching id is found:
+                (*(ht->p_buckets + idx)) = current->p_next;     //case 1: if node in question is the head
+            }
+            else {
+                prev->p_next = current->p_next;     //case 2: if node in question is in the middle or at the tail
+            }
+
+            free(current);    //freeing the node with the student record from the hash table
+            return 0;
+        }
+        prev = current;
+        current = current->p_next;
+    }
+
+    return -1;
 }

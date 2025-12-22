@@ -7,7 +7,13 @@ This project is a command-line student database manager built from scratch in C.
 
 ## Version History
 
-### Commit 3: The Search & Sort Update (Current)
+### Commit 4: The Deletion Update (Current)
+
+* **Hybrid Deletion Logic:** Implemented a robust deletion mechanism (`delete_student_from_hash`) that physically removes nodes from the Hash Table linked lists to free memory immediately.
+* **Tombstone Strategy:** Adopted a "soft delete" approach for the master data array by marking deleted student IDs as `-1` (tombstones). This preserves array integrity without requiring expensive memory shifting during runtime.
+* **Stability Fixes:** Resolved linker errors by reorganizing global variable definitions and fixed potential infinite loops in traversal functions.
+
+### Commit 3: The Search & Sort Update
 
 * **High-Performance Search:** Implemented a targeted  lookup function using the hash table index to retrieve student records by ID.
 * **Generic Sorting Engine:** Integrated the C Standard Library's `qsort` to reorder the master record array by GPA.
@@ -45,8 +51,9 @@ The project follows a strict "allocation must have a corresponding free" philoso
 ## Future Roadmap
 
 1. **Interactive Menu System:** Implement a `while(1)` loop to handle user commands (INPUT, VIEW, SEARCH, DELETE, EXIT).
-2. **State Persistence (Flush):** Update the file saving logic to overwrite `Students.txt` with the current RAM state upon exit.
-3. **Advanced Deletion:** Implement node removal from the hash chain with pointer reassignment.
+2. **State Persistence (Flush):** Update the file saving logic to overwrite `Students.txt` with the current RAM state upon exit, ensuring "tombstone" records are filtered out.
+3. **Heap Compaction:** Develop a utility to "defragment" the master array by removing tombstone gaps and reallocating memory to reduce footprint.
+4. **Global Destructor:** Implement a centralized cleanup function to handle the orderly deallocation of the Hash Table, linked lists, and master data array, emulating a C++ destructor pattern for the main application context.
 
 ## Build and Run
 

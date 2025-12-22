@@ -9,7 +9,7 @@ void clear_input_buffer(void) {     //function to clear the input-buffer after '
     while ((c = getchar()) != '\n' && c != EOF); 
 }
 
-int getData(Student_t* s_ptr, int n) {    //function to fetch data from the user with minimal user-input validation and store it in the provided heap memory 
+int getData (Student_t* s_ptr, int n) {    //function to fetch data from the user with minimal user-input validation and store it in the provided heap memory 
     for (int i = 0; i < n; i++) {         
         printf("Enter data for student %d:\n", i + 1);         
         printf("Enter student ID: \n");  
@@ -41,7 +41,7 @@ int getData(Student_t* s_ptr, int n) {    //function to fetch data from the user
 }
 
 int writeData (Student_t* s_ptr, int n, const char* filename) {     //function to write data to the text files
-    FILE* fp = fopen (filename, "a");     // writing in append-mode to ensure persistant files
+    FILE* fp = fopen (filename, "w");     // writing in write mode to rewrite the file with updated contents
     if (!fp) {         
         fprintf(stderr, "Error opening file in write mode!\n");    
 
@@ -49,9 +49,10 @@ int writeData (Student_t* s_ptr, int n, const char* filename) {     //function t
     }
 
     for (int i = 0; i < n; i++) {     
-
-        fprintf(fp, "%d,%s,%.2f\n", (s_ptr + i)->id, (s_ptr + i)->name, (s_ptr + i)->gpa);    //writing in csv format for ease of parsing and user-readability 
-    }     
+        if ((s_ptr + i)->id != -1) {
+            fprintf(fp, "%d,%s,%.2f\n", (s_ptr + i)->id, (s_ptr + i)->name, (s_ptr + i)->gpa);    //writing in csv format for ease of parsing and user-readability 
+        }
+    }
 
     fclose(fp);     
     fp = NULL;      
@@ -118,22 +119,25 @@ Pair_t readData (const char* filename) {     //function to count number of lines
 
 int displayData (const Student_t* s_ptr, int count) {     //function to display data stored in malloc'd heap memory (minimal formatting)
 
-    if (!s_ptr) {         
-        fprintf(stderr, "Error! Invalid pointer!\n");     
+    if (!s_ptr) {
+        fprintf(stderr, "Error! Invalid pointer!\n");
 
         return -1;     
     }    
 
-    printf("Printing data for %d students: ",count);   
-    for (int i = 0; i < count; i++) {         
-        printf("Student %d ID: %d\n", i + 1, (s_ptr + i)->id);         
-        printf("Student %d Name: %s\n", i + 1, (s_ptr + i)->name);         
-        printf("Student %d GPA: %.2f\n", i + 1, (s_ptr + i)->gpa);    
+    printf("Current state of the file: \n");    //displays the contents of the file if the data is flushed to the file then
+    printf("Printing data for %d students: ", count);
+    for (int i = 0; i < count; i++) {
+        if ((s_ptr + i)->id != -1) {     //check for tombstone condition (id == -1)
+            printf("Student %d ID: %d\n", i + 1, (s_ptr + i)->id);     
+            printf("Student %d Name: %s\n", i + 1, (s_ptr + i)->name);         
+            printf("Student %d GPA: %.2f\n", i + 1, (s_ptr + i)->gpa);
 
-        printf("\n");     
-    }    
+            printf("\n");
+        }     
+    }
 
-    return 0; 
+    return 0;
 }
 
 int compare_gpa(const void* a, const void* b) {     //callback function for qsort
@@ -151,7 +155,7 @@ int compare_gpa(const void* a, const void* b) {     //callback function for qsor
     return 0;
 }
 
-Student_t* sort(Student_t* s_ptr, int count) {
+Student_t* sort(Student_t* s_ptr, int count) {      //function that calls the qsort function
     if (!s_ptr) {
         return NULL;
     }
@@ -159,4 +163,23 @@ Student_t* sort(Student_t* s_ptr, int count) {
     qsort(s_ptr, count, sizeof(Student_t), compare_gpa);
 
     return s_ptr;
+}
+
+int display_topper (Student_t* s_ptr, int count) {
+    if (!s_ptr) {
+        return -1;
+    }
+
+    Student_t* s_p = s_ptr;
+    while (s_p - s_ptr < count) {
+        if (s_p->id != -1) {
+            printf("TOPPER:\nName: %s\n", s_p->name);
+            printf("ID: %d\n", s_p->id);
+            printf("GPA: %.2f\n", s_p->gpa);
+            return 0;
+        }
+        s_p++;
+    }
+    
+    return -1;
 }

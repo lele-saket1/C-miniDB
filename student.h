@@ -29,6 +29,8 @@ int compare_gpa(const void* a, const void* b);
 
 Student_t* sort(const Student_t* s_ptr, int count);
 
-int (*cmp_ptr) (const void* a, const void* b)
+int (*cmp_ptr) (const void*, const void*) = &compare_gpa;
+
+int display_topper (Student_t* s_ptr);
 
 #endif
