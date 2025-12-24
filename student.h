@@ -1,36 +1,39 @@
 #ifndef STUDENT_H
 #define STUDENT_H
 
-//Student_t struct (instance of a student)
+#include <stdio.h>
+
+//Forward declaration to deal with dependancy
+typedef struct Hashtable Hashtable_t;
+
 typedef struct {
     int id;
     char name[50];
     float gpa;
 } Student_t;
 
-//Pair_t struct for dual return values
 typedef struct {    
-    int count;      //representative of number of records in persistent file
-    Student_t* ptr; //pointer pointing to the block of memory on heap, storing student data after reading
-} Pair_t;
+    int count;      
+    int capacity;   
+    Student_t* ptr; 
+} StudentDB;
 
-//Prototypes for Basic Functions
-int getData(Student_t* s_ptr, int n); 
+//Function definitions:
 
+//functions to deal with file I/O:
+StudentDB readData(const char* filename);
 int writeData(Student_t* s_ptr, int n, const char* filename);
 
-Pair_t readData(const char* filename);
-
-int displayData(const Student_t* s_ptr, int count);
-
+//internal logic / helper functions:
+int get_fresh_slot(StudentDB* db, int* realloc_flag);
 void clear_input_buffer(void);
 
-int compare_gpa(const void* a, const void* b);
+//UI wrapper functions:
+void handle_create_student(StudentDB* db, Hashtable_t* ht);
+int displayData(const Student_t* s_ptr, int count);
 
-Student_t* sort(const Student_t* s_ptr, int count);
-
-int (*cmp_ptr) (const void*, const void*) = &compare_gpa;
-
-int display_topper (Student_t* s_ptr);
+//helper and wrapper functions for sorting:
+int compare_gpa_indirect(const void* a, const void* b);
+int handle_sort_and_display(StudentDB* db);
 
 #endif

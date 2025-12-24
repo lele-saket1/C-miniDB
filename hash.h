@@ -29,6 +29,9 @@ int insert_to_hash(Student_t* s_ptr, int n, Hashtable_t* ht);
 //function for search functionality:
 Student_t* search_student(Hashtable_t* ht, int id); 
 
-//function to delete student hash table:
+//function to delete student from hash table and mark a tombstone:
 int delete_student_from_hash(Hashtable_t* ht, int id);
+
+//function to update student record:
+int update_student (Hashtable_t* ht, int id);
 #endif
