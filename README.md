@@ -78,9 +78,7 @@ Physical deletion in an array is an O(N) operation requiring the shifting of all
 
 ## Future Roadmap
 
-1. **Hash Table Lifecycle:** Implement `hashtable_clear` (destructor) and internal reset functions to handle state changes (like array re-allocation) cleanly.
-2. **Interactive Menu Loop:** Replace the linear execution flow with a persistent `while(1)` loop handling user commands (CREATE, READ, UPDATE, DELETE, SORT, EXIT).
-3. **Final System Testing:** Perform comprehensive validation of all CRUD operations and memory states.
+1. Implement proper error handle handling, as in production grade code returning enums.
 
 ## Build and Run
 
