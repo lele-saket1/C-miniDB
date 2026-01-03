@@ -1,4 +1,5 @@
 #include "student.h"
+#include "hash.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -154,14 +155,12 @@ int displayData (const Student_t* s_ptr, int count) {
         return -1;     
     }    
 
-    printf("Printing data for %d students: ", count);
+    printf("Printing data for %d students: \n", count);
     for (int i = 0; i < count; i++) {
         if ((s_ptr + i)->id != -1) {       //check for tombstone condition (id == -1)
-
-            printf("Student %d ID: %d\n", i + 1, (s_ptr + i)->id);     
-            printf("Student %d Name: %s\n", i + 1, (s_ptr + i)->name);         
-            printf("Student %d GPA: %.2f\n", i + 1, (s_ptr + i)->gpa);
-
+            printf("[Student %d: ID: %d | Name: %s | GPA: %.2f]\n", 
+                            i + 1, (s_ptr + i)->id, (s_ptr + i)->name, (s_ptr + i)->gpa);
+                            
             printf("\n");
         }
     }
@@ -308,12 +307,13 @@ int handle_sort_and_display(StudentDB* db) {
 
     Student_t* s_p = db->ptr;
 
-    Student_t** idx_arr = (Student_t **)calloc(db->capacity, sizeof(Student_t *));
+    //initialize array of pointers pointinf to students structs in main array:
+    Student_t** idx_arr = (Student_t **)calloc(db->capacity, sizeof(Student_t *));  
     if (!idx_arr) {
         return -1;
     }
 
-    int j = 0;
+    int j = 0;  //set counter variable for idx_arr
     for (int i = 0; i < db->capacity; i++) {
         if ((s_p + i)->id != -1) {
             *(idx_arr + j) = (s_p + i);
@@ -321,17 +321,38 @@ int handle_sort_and_display(StudentDB* db) {
         }
     }
 
-    qsort(idx_arr, j, sizeof(Student_t *), compare_gpa_indirect);
+    //invoke qsort function by passing call-back function
+    qsort(idx_arr, j, sizeof(Student_t *), compare_gpa_indirect);   
 
     printf("Displaying sorted student records: \n");
     for (int i = 0; i < j; i++) {
-        printf("Displaying Data for Student '%d': \n", i + 1);
-        printf("Student ID: %d\n", (*(idx_arr + i))->id);
-        printf("Student Name: %s\n", (*(idx_arr + i))->name);
-        printf("Student GPA: %.2f\n", (*(idx_arr + i))->gpa);
+       printf("[Student %d: ID: %d | Name: %s | GPA: %.2f]\n", 
+                    i + 1, (*(idx_arr + i))->id, (*(idx_arr + i))->name, (*(idx_arr + i))->gpa);
     }
+    printf("\n");
 
     free(idx_arr);
+
+    return 0;
+}
+
+//Global destructor function:
+int DBcleanup(Hashtable_t** ht_ref, StudentDB* db) {
+    if (!ht_ref || !(*ht_ref) || !db) {
+        return -1;
+    }
+
+    //clears and deletes hash table:
+    hashtable_clear (*(ht_ref));    //empties hash-table, setting buckets to null
+    free((*ht_ref)->p_buckets);     //clears array of buckets
+    free(*ht_ref);                  //clears hash-table
+    (*ht_ref) = NULL;               //gets rid of dangling pointer
+
+    //clears and deletes student struct array:
+    free(db->ptr);    //frees array of student structs;
+    db->ptr = NULL;    //gets rid of dangling pointer
+    db->capacity = 0;   
+    db->count = 0;
 
     return 0;
 }

@@ -12,7 +12,7 @@ typedef struct HashNode {    //defining instance of linked-list node:
 } HashNode_t;
 
 
-typedef struct {              //defining instance of hash table:
+typedef struct Hashtable{              //defining instance of hash table:
     int size;                 //holds the size of the hash table (i.e., the number of buckets in the hash table)
     HashNode_t** p_buckets;   //points to the array of buckets (which point to individual 'head nodes' of the linked-list)
 } Hashtable_t;
@@ -34,4 +34,7 @@ int delete_student_from_hash(Hashtable_t* ht, int id);
 
 //function to update student record:
 int update_student (Hashtable_t* ht, int id);
+
+//function to clear the hashtable:
+int hashtable_clear (Hashtable_t* ht);
 #endif

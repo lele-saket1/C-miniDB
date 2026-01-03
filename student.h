@@ -6,16 +6,18 @@
 //Forward declaration to deal with dependancy
 typedef struct Hashtable Hashtable_t;
 
+//Student_t struct to represent a student record in the database:
 typedef struct {
     int id;
     char name[50];
     float gpa;
 } Student_t;
 
+//StudentDB struct to manage flat array of student structs on the heap:
 typedef struct {    
-    int count;      
-    int capacity;   
-    Student_t* ptr; 
+    int count;          //number of valid records in the struct 
+    int capacity;       //current capacity of struct (including tombstones)
+    Student_t* ptr;     //pointer to the student struct on the heap
 } StudentDB;
 
 //Function definitions:
@@ -35,5 +37,8 @@ int displayData(const Student_t* s_ptr, int count);
 //helper and wrapper functions for sorting:
 int compare_gpa_indirect(const void* a, const void* b);
 int handle_sort_and_display(StudentDB* db);
+
+//Global cleanup function:
+int DBcleanup (Hashtable_t **ht, StudentDB *db);
 
 #endif

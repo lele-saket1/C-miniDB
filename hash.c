@@ -1,6 +1,7 @@
 #include "hash.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include<string.h>
 
 //hash function definition:
 int hash_function(int id) {     
@@ -114,8 +115,6 @@ int update_student (Hashtable_t* ht, int id) {
         return -1;
     }
 
-    clear_input_buffer();
-
     printf("Update Student Data: \n");      //updates student data from user input (id is immutable)
     printf("Update Student Name: \n");
     if (!fgets(s_p->name, sizeof(s_p->name), stdin)) {
@@ -129,13 +128,32 @@ int update_student (Hashtable_t* ht, int id) {
         return -1;
     }
 
+    clear_input_buffer();
+
     printf("Updated Data: \n");     //displays updates data for the student record
     int res3 = displayData(s_p, 1);
     if (res3 == -1) {
         return -1;
     }
 
-    clear_input_buffer();
+
+    return 0;
+}
+
+int hashtable_clear (Hashtable_t* ht) {
+    if (!ht) {
+        return -1;
+    }
+
+    for (int i = 0; i < ht->size; i++) {
+        HashNode_t* current = *(ht->p_buckets + i);
+        *(ht->p_buckets + i) = NULL;
+        while (current != NULL) {
+            HashNode_t* next = current->p_next;
+            free(current);
+            current = next;
+        }
+    }
 
     return 0;
 }

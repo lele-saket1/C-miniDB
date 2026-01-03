@@ -6,6 +6,11 @@ This project is a command-line student database manager built from scratch in C.
 
 ## Version History
 
+### Commit 6: The Interactive Loop & Cleanup
+
+* **Interactive Menu Loop:** Implemented the main `while(1)` loop to provide a persistent, interactive command-line interface for users to perform various database operations.
+* **Global Cleanup Function:** Developed a comprehensive `DBcleanup` function responsible for deallocating all dynamically allocated memory (Heap Array, Hash Table nodes, and Hash Table structure itself) to prevent memory leaks upon program exit.
+
 ### Commit 5: The Architecture & Integrity Update (Current)
 
 * **Referential Integrity (Indirect Sorting):** Completely overhauled the sorting engine. Instead of sorting the main data array (which would shift memory addresses and invalidate Hash Table pointers), the system now creates and sorts an auxiliary array of pointers (`Student_t**`). This allows for ordered viewing while keeping the physical Heap Array and Hash Table consistent.
