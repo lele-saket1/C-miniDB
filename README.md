@@ -9,7 +9,7 @@ This project is a command-line student database manager built from scratch in C.
 ## Version History
 
 ### Commit 7: The Growth Logic Fix Update
-* **Geometric Growth Fix:** Optimised the logic for the `handle_create_student` function. The earlier version did not have provisions for running the duplicate record check while still creating new students.
+* **Geometric Growth Fix:** Optimized the logic for the `handle_create_student` function. The earlier version did not have provisions for running the duplicate record check while still creating new students.
 
 ### Commit 6: The Interactive Loop & Cleanup Update
 
@@ -81,8 +81,14 @@ Physical deletion in an array is an O(N) operation requiring the shifting of all
 * **The Trade-off:** This sacrifices a small amount of memory for significant performance gains, as deletion becomes an O(1) operation. These "tombstones" can be cleaned up during a future "compaction" phase or ignored during file persistence.
 
 
-## Future Roadmap
+## VERSION 1: END LOG: THANK YOU!
 
+## Future Roadmap (for Version 2): 
+
+1. Implement proper error handle handling, as in production grade code returning enums.
+2. Implement testing mechanisms on the particular parameters.
+3. Optimize the Hash Table mechanism and implement an extensible 'buckets' array.
+4. Implement a more efficient growth algorithm, saving on re-hashing costs.
 
 ## Build and Run
 
