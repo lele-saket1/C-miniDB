@@ -18,6 +18,7 @@ int get_fresh_slot(StudentDB* db, int* realloc_flag) {
         return -1;
     }
 
+    //set realloc flag to zero
     *realloc_flag = 0;
 
     int i = 0;
@@ -32,6 +33,7 @@ int get_fresh_slot(StudentDB* db, int* realloc_flag) {
         i++;
     }
     
+    //realloc has been used. set realloc flag to 1:
     *realloc_flag = 1;
     int new_cap = (db->capacity == 0)? 10 : (db->capacity * 2);
     Student_t* temp_ptr = (Student_t *)realloc(db->ptr, new_cap * sizeof(Student_t));
@@ -40,15 +42,19 @@ int get_fresh_slot(StudentDB* db, int* realloc_flag) {
     }
     db->ptr = temp_ptr;
 
+    //initialize new slots as tombstones (unused):
     for (int i = db->capacity; i < new_cap; i++) {
         (db->ptr + i)->id = -1;
     }
 
+    //update capacity:
     db->capacity = new_cap;
     temp_ptr = NULL;
 
     int index = db->count;
     db->count += 1;
+
+    //return first 'fresh' index:
     return index;
 }
 
@@ -181,19 +187,17 @@ void handle_create_student(StudentDB* db, Hashtable_t* ht) {
     }
     clear_input_buffer();
 
-    //Setup Tracking
+    //set up tracking array for new usable indices returned by 'get_fresh_slot' function:
     int* new_indices = (int*)malloc(n * sizeof(int));
     if (!new_indices) {
         fprintf(stderr, "Memory allocation failed for tracking array.\n");
         return;
     }
 
-    int global_realloc = 0; 
     int success_count = 0;
 
-    //Batch Input Loop
     for (int i = 0; i < n; i++) {
-        printf("\n--- Entering Student %d of %d ---\n", i + 1, n);
+        printf("\nEntering Student %d of %d:\n", i + 1, n);
         
         int local_realloc = 0;
         int idx = get_fresh_slot(db, &local_realloc);
@@ -203,14 +207,20 @@ void handle_create_student(StudentDB* db, Hashtable_t* ht) {
             break; 
         }
 
+        //if memory moved, update the Hash Table immediately so search_student works for next check:
         if (local_realloc) {
-            global_realloc = 1;
+            hashtable_clear(ht); 
+            for (int j = 0; j < db->capacity; j++) {
+                if ((db->ptr + j)->id != -1) {
+                    insert_to_hash((db->ptr + j), 1, ht);
+                }
+            }
         }
 
+        //update index-tracking array:
         *(new_indices + i) = idx;
         Student_t* s = (db->ptr + idx);
         
-        // User Input Block:
         printf("Enter ID: ");
         if (scanf(" %d", &s->id) != 1) {
             printf("Invalid ID. Skipping.\n");
@@ -220,14 +230,13 @@ void handle_create_student(StudentDB* db, Hashtable_t* ht) {
         }
         clear_input_buffer();
 
-        // Safety: Only check for duplicates if pointers are still valid
-        if (!global_realloc) {
-             if (search_student(ht, s->id) != NULL) {
-                 printf("Error: ID %d already exists! Skipping.\n", s->id);
-                 s->id = -1;
-                 continue;
-             }
-        } 
+        //valid check due to hash table being synced before:
+        //searching student to check for duplicates:
+        if (search_student(ht, s->id) != NULL) {
+            printf("Error: ID %d already exists! Skipping.\n", s->id);
+            s->id = -1;
+            continue;
+        }
         
         printf("Enter Name: ");
         if (!fgets(s->name, sizeof(s->name), stdin)) {
@@ -245,40 +254,13 @@ void handle_create_student(StudentDB* db, Hashtable_t* ht) {
         }
         clear_input_buffer();
 
+        //add to hash table immediately for the next duplicate check:
+        insert_to_hash(s, 1, ht);
         success_count++;
     }
 
-    //The Commit Phase (The Logic Split)
-    if (global_realloc) {
-        printf("System: Memory expanded. Re-indexing entire database...\n");
-        
-        // A. Clear the old, broken pointers
-        hashtable_clear(ht); 
-
-        // B. Repopulate: Loop through the NEW array and index everyone
-        for (int i = 0; i < db->capacity; i++) {
-            if ((db->ptr + i)->id != -1) {
-                insert_to_hash((db->ptr + i), 1, ht);
-            }
-        }
-
-    } else {
-        // Optimization: Just insert the new records
-        printf("System: Integrating %d new records...\n", success_count);
-        
-        for (int i = 0; i < n; i++) {
-            int idx = *(new_indices + i);
-            Student_t* s = (db->ptr + idx);
-            
-            // Only hash if the input was successful (not a tombstone)
-            if (s->id != -1) {
-                insert_to_hash(s, 1, ht);
-            }
-        }
-    }
-
     free(new_indices);
-    printf("Batch operation complete.\n");
+    printf("[Batch operation complete. %d records added.]\n", success_count);
 }
 
 //Helper and wrapper functions for sorting:

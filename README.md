@@ -1,3 +1,5 @@
+# C-miniDB VERSION 1:
+
 # C-miniDB: A Student Record Manager
 
 ## Overview
@@ -6,7 +8,10 @@ This project is a command-line student database manager built from scratch in C.
 
 ## Version History
 
-### Commit 6: The Interactive Loop & Cleanup
+### Commit 7: The Growth Logic Fix Update
+* **Geometric Growth Fix:** Optimised the logic for the `handle_create_student` function. The earlier version did not have provisions for running the duplicate record check while still creating new students.
+
+### Commit 6: The Interactive Loop & Cleanup Update
 
 * **Interactive Menu Loop:** Implemented the main `while(1)` loop to provide a persistent, interactive command-line interface for users to perform various database operations.
 * **Global Cleanup Function:** Developed a comprehensive `DBcleanup` function responsible for deallocating all dynamically allocated memory (Heap Array, Hash Table nodes, and Hash Table structure itself) to prevent memory leaks upon program exit.
@@ -78,9 +83,6 @@ Physical deletion in an array is an O(N) operation requiring the shifting of all
 
 ## Future Roadmap
 
-1. **Hash Table Lifecycle:** Implement `hashtable_clear` (destructor) and internal reset functions to handle state changes (like array re-allocation) cleanly.
-2. **Interactive Menu Loop:** Replace the linear execution flow with a persistent `while(1)` loop handling user commands (CREATE, READ, UPDATE, DELETE, SORT, EXIT).
-3. **Final System Testing:** Perform comprehensive validation of all CRUD operations and memory states.
 
 ## Build and Run
 
