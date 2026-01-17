@@ -1,5 +1,8 @@
 # C-miniDB VERSION 1:
 
+## VERSION 1: CRITICAL CONSTRAINTS
+Because of the geometric growth realloc strategy, which forces the program to reallocate the array elsewhere and rehash the hash table, and because of the static hash table with a limited bucket-size, this program is currently recommended only for a maximum of 1000 records. Beyond this number, the rehashing becomes inefficient and the search/lookup is no longer O(1) (average).
+
 # C-miniDB: A Student Record Manager
 
 ## Overview
