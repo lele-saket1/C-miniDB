@@ -3,17 +3,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "utils.h"
 
 //Function definitions for internal logic / helper-functions: 
 
-//function to clear the input-buffer after 'bad' input:
-void clear_input_buffer(void) {     
-    int c;     
-    while ((c = getchar()) != '\n' && c != EOF); 
-}
-
 //function to create new student records:
-int get_fresh_slot(StudentDB* db, int* realloc_flag) {
+int get_fresh_slot (StudentDB* db, int* realloc_flag) {    //enum is returned through eax or rax as an int (safer than returning an address)
     if(!db || !realloc_flag) {
         return -1;
     }
@@ -28,6 +23,7 @@ int get_fresh_slot(StudentDB* db, int* realloc_flag) {
             if (i >= db->count) {
                 db->count = i + 1;
             }
+
             return i;
         }
         i++;
@@ -58,16 +54,26 @@ int get_fresh_slot(StudentDB* db, int* realloc_flag) {
     return index;
 }
 
+//function to clear-out StudentDb struct:
+void clear_StudentDB (StudentDB* db) {
+    db->ptr = NULL;
+    db->capacity = 0;
+    db->count = 0;
+    db->active_records_count = 0;
+}
+
 //Function definitions for file-I/O functions:
 
 //Function to write or O/p data to the text-files:
-int writeData (Student_t* s_ptr, int n, const char* filename) {
+Status_e writeData (Student_t* s_ptr, int n, const char* filename) {
+    if (!s_ptr) {
+        return ERR_NULL_POINTER;
+    }
     //writing in write mode to rewrite the file with updated contents
     FILE* fp = fopen (filename, "w");     
-    if (!fp) {         
-        fprintf(stderr, "Error opening file in write mode!\n");    
+    if (!fp) {            
 
-        return -1;     
+        return ERR_FILE_WRITE_FAILED;  
     }
 
     for (int i = 0; i < n; i++) {     
@@ -80,28 +86,29 @@ int writeData (Student_t* s_ptr, int n, const char* filename) {
     fclose(fp);     
     fp = NULL;      
 
-    return 0; 
+    return STATUS_OK; 
 } 
 
 //Function to read or I/p data from the text files and return the number of records, capacity and pointer to the Student_t struct:
-StudentDB readData (const char* filename) {     
-    StudentDB ret_struct;     
+Status_e readData (const char* filename, StudentDB* out_db) {     
+    if (!out_db) {
+        return ERR_NULL_POINTER;
+    }
 
     FILE* fp = fopen (filename, "r");     
     if (!fp) {         
-        fprintf(stderr, "Error opening file in read mode!\n"); 
 
-        ret_struct.count = 0;         
-        ret_struct.ptr = NULL;   
+        out_db->count = 0;         
+        out_db->ptr = NULL; 
 
-        return ret_struct;     
+        return ERR_FILE_OPEN_FAILED;  
     } 
 
-    ret_struct.count = 0;     
+    out_db->count = 0;     
     int c;     
     while ((c = fgetc(fp)) != EOF) {   
         if (c == '\n') {          
-            ret_struct.count++;        //counting number of lines (number of existing records):
+            out_db->count++;        //counting number of lines (number of existing records):
         }     
     }     
 
@@ -114,28 +121,30 @@ StudentDB readData (const char* filename) {
     rewind(fp);     
 
     int buffer_margin = 10;
-    ret_struct.capacity = ret_struct.count + buffer_margin;
+    out_db->capacity = out_db->count + buffer_margin;
 
-    Student_t* temp_ptr = (Student_t *)malloc(ret_struct.capacity * sizeof(Student_t)); 
+    Student_t* temp_ptr = (Student_t *)malloc(out_db->capacity * sizeof(Student_t)); 
     
     if (!temp_ptr) {         
         fprintf(stderr, "Error in memory allocation!\n");         
-        ret_struct.count = 0;
-        ret_struct.capacity = 0; 
-        ret_struct.ptr = NULL;                 
-        return ret_struct;     
+        out_db->count = 0;
+        out_db->capacity = 0; 
+        out_db->ptr = NULL;   
+        fclose(fp);
+
+        return ERR_ALLOCATION_FAILED;    
     }
 
-    memset(temp_ptr, 0, ret_struct.capacity * sizeof(Student_t));
+    memset(temp_ptr, 0, out_db->capacity * sizeof(Student_t));
 
-    for(int i = ret_struct.count; i < ret_struct.capacity; i++) {
+    for(int i = out_db->count; i < out_db->capacity; i++) {
         (temp_ptr + i)->id = -1;    // Tombstone/Empty marker
     }
 
-    ret_struct.ptr = temp_ptr;     
+    out_db->ptr = temp_ptr;     
     char line_buffer[100];
      
-    for (int i = 0; i < ret_struct.count; i++) {         
+    for (int i = 0; i < out_db->count; i++) {         
         if (fgets(line_buffer, sizeof(line_buffer), fp)) {       
             //using sscanf to parse memory and using the special scanset to deal with white spaces in strings (names)     
             if (sscanf(line_buffer, "%d,%49[^,],%f", &(temp_ptr + i)->id, (temp_ptr + i)->name, &(temp_ptr + i)->gpa) != 3) {                 
@@ -147,19 +156,23 @@ StudentDB readData (const char* filename) {
     fclose(fp);     
     fp = NULL; 
 
-    return ret_struct; 
+    return STATUS_OK; 
 }
 
 //UI wrapper functions:
 
 //Function to display the current State of the Student_t struct array:
-int displayData (const Student_t* s_ptr, int count) {     
+Status_e displayData (Student_t* s_ptr, int count) {     
 
     if (!s_ptr) {
-        fprintf(stderr, "Error! Invalid pointer!\n");
 
-        return -1;     
+        return ERR_NULL_POINTER;
     }    
+
+    if (count <= 0) {
+
+        return ERR_INVALID_INT_ARG;
+    }
 
     printf("Printing data for %d students: \n", count);
     for (int i = 0; i < count; i++) {
@@ -171,27 +184,29 @@ int displayData (const Student_t* s_ptr, int count) {
         }
     }
 
-    return 0;
+    return STATUS_OK;
 }
 
 //UI wrapper function that invokes the 'get_fresh_slot' logic function and deals with the hash table:
-void handle_create_student(StudentDB* db, Hashtable_t* ht) {
-    if (!db || !ht) return;
+Status_e handle_create_student(StudentDB* db, Hashtable_t* ht) {
+    if (!db || !ht) {
+        return ERR_NULL_POINTER;
+    }
 
     int n;
     printf("How many students do you want to add? ");
     if (scanf(" %d", &n) != 1 || n <= 0) {
         printf("Invalid number.\n");
         clear_input_buffer();
-        return;
+        return ERR_INVALID_INPUT;
     }
     clear_input_buffer();
 
     //set up tracking array for new usable indices returned by 'get_fresh_slot' function:
     int* new_indices = (int*)malloc(n * sizeof(int));
     if (!new_indices) {
-        fprintf(stderr, "Memory allocation failed for tracking array.\n");
-        return;
+
+        return ERR_ALLOCATION_FAILED;
     }
 
     int success_count = 0;
@@ -261,6 +276,7 @@ void handle_create_student(StudentDB* db, Hashtable_t* ht) {
 
     free(new_indices);
     printf("[Batch operation complete. %d records added.]\n", success_count);
+    return STATUS_OK;
 }
 
 //Helper and wrapper functions for sorting:
@@ -282,9 +298,13 @@ int compare_gpa_indirect(const void* a, const void* b) {
 }
 
 //wrapper function for sorting (invokes qsort):
-int handle_sort_and_display(StudentDB* db) {
-    if (!db->ptr || !db->count) {
-        return -1;
+Status_e handle_sort_and_display(StudentDB* db) {
+    if (!db->ptr) {
+        return ERR_NULL_POINTER;
+    }
+
+    if (!db->count) {
+        return ERR_DB_EMPTY;
     }
 
     Student_t* s_p = db->ptr;
@@ -292,7 +312,7 @@ int handle_sort_and_display(StudentDB* db) {
     //initialize array of pointers pointinf to students structs in main array:
     Student_t** idx_arr = (Student_t **)calloc(db->capacity, sizeof(Student_t *));  
     if (!idx_arr) {
-        return -1;
+        return ERR_ALLOCATION_FAILED;
     }
 
     int j = 0;  //set counter variable for idx_arr
@@ -315,13 +335,13 @@ int handle_sort_and_display(StudentDB* db) {
 
     free(idx_arr);
 
-    return 0;
+    return STATUS_OK;
 }
 
 //Global destructor function:
-int DBcleanup(Hashtable_t** ht_ref, StudentDB* db) {
+Status_e DBcleanup(Hashtable_t** ht_ref, StudentDB* db) {
     if (!ht_ref || !(*ht_ref) || !db) {
-        return -1;
+        return ERR_NULL_POINTER;
     }
 
     //clears and deletes hash table:
@@ -336,5 +356,5 @@ int DBcleanup(Hashtable_t** ht_ref, StudentDB* db) {
     db->capacity = 0;   
     db->count = 0;
 
-    return 0;
+    return STATUS_OK;
 }

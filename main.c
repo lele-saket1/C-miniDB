@@ -3,6 +3,7 @@
 #include<string.h>
 #include "student.h"
 #include "hash.h"
+#include "utils.h"
 
 //Helper function for UI display:
 void print_menu(void) {
@@ -23,16 +24,27 @@ int main(void) {
     int choice;
     int id_input;
     Student_t* search_result = NULL;
+    StudentDB db;
+    clear_StudentDB (&db);
 
     //1. Booting up the program:
     printf("[BOOT] Loading data from disk...\n");
     
     //Load data into flat array from Disk (Storage):
-    StudentDB db = readData(filename); 
+    Status_e boot_status = readData (filename, &db);
+    if (boot_status != STATUS_OK) {
+        fprintf(stderr, "[BOOT WARNING] %s\n", get_status_msg(boot_status));
+
+        if (boot_status == ERR_ALLOCATION_FAILED) {
+            fprintf(stderr, "[FATAL] System cannot run without memory.\n");
+
+            return -1;
+        }
+    }
     
     //Safety check: Ensure that pointer is valid!
     if (!db.ptr) {
-        printf("[BOOT] No existing data found or allocation error. Starting fresh.\n");
+        printf("[BOOT WARNING] No existing data found or allocation error. Starting fresh.\n");
         //Initialize a fresh DB if readData returned NULL
         db.capacity = 10;
         db.count = 0;
@@ -73,11 +85,19 @@ int main(void) {
 
         switch (choice) { //'choice' indicates operation chosen by user
             case 1: //VIEW operation: displays current state of the student array
-                displayData(db.ptr, db.capacity);
+                Status_e view_result =  displayData(db.ptr, db.capacity);
+                if (view_result != STATUS_OK) {
+                    fprintf(stderr, "[FAIL] View operation failed.  %s\n", get_status_msg(view_result));
+                    continue;
+                }
                 break;
 
             case 2: //CREATE operation: adds new student record to student array occupying tombstones or invoking vector growth if neccessary
-                handle_create_student(&db, ht);
+                Status_e create_status =  handle_create_student(&db, ht);
+                if (create_status != STATUS_OK) {
+                    fprintf(stderr, "[FAIL] Create operation failed. %s\n", get_status_msg(create_status));
+                    continue;
+                }
                 break;
 
             case 3: //SEARCH operation: uses hash table's O(1) lookups
@@ -88,7 +108,8 @@ int main(void) {
                         printf("\n[FOUND] ID: %d | Name: %s | GPA: %.2f\n", 
                                search_result->id, search_result->name, search_result->gpa);
                     } else {
-                        printf("\n[404] Student with ID %d not found.\n", id_input);
+                        printf("\n[FAIL] Student with ID %d not found.\n", id_input);
+                        continue;
                     }
                 }
                 clear_input_buffer();
@@ -97,11 +118,14 @@ int main(void) {
             case 4: //UPDATE operation: uses search function to find student with particular id in the hashtable and modifies the struct directly
                 printf("Enter Student ID to update: ");     //hence, the student array gets automatically updated
                 if (scanf("%d", &id_input) == 1) {
-                    clear_input_buffer(); // Clear buffer before update_student calls fgets
-                    if (update_student(ht, id_input) == 0) {
+                    clear_input_buffer(); //clear buffer before update_student calls fgets
+
+                    Status_e update_status = update_student(ht, id_input);
+                    if (update_status == STATUS_OK) {
                         printf("[SUCCESS] Record updated.\n");
                     } else {
-                        printf("[FAIL] Could not update (ID not found or invalid input).\n");
+                        fprintf(stderr, "[FAIL] Update operation failed. %s\n", get_status_msg(update_status));
+                        continue;
                     }
                 } else {
                     clear_input_buffer();
@@ -111,25 +135,34 @@ int main(void) {
             case 5: //DELETE operation: deletes node from hashtable after searching for it. it marks a tombstone in the struct in the student array
                 printf("Enter Student ID to delete: ");
                 if (scanf("%d", &id_input) == 1) {
-                    if (delete_student_from_hash(ht, id_input) == 0) {
-                        printf("[SUCCESS] Student %d deleted (Tombstoned).\n", id_input);
+                    Status_e delete_status = delete_student_from_hash(ht, id_input, &db);
+                    if (delete_status == STATUS_OK) {
+                        printf("[SUCCESS] Student with ID %d deleted (Tombstoned).\n", id_input);
                     } else {
-                        printf("[FAIL] ID not found.\n");
+                        fprintf(stderr, "[FAIL] Delete operation failed. %s\n", get_status_msg(delete_status));
+                        continue;
                     }
                 }
                 clear_input_buffer();
                 break;
 
             case 6: //SORT & DISPLAY operation: sorts internal array of pointers to the pointers of the student structs using qsort, based on gpa
-                handle_sort_and_display(&db);   //result is displayed, with all records sorted in secondary array, based on gpa
+                Status_e sort_status = handle_sort_and_display(&db);   //result is displayed, with all records sorted in secondary array, based on gpa
+                if (sort_status == STATUS_OK) {
+                    printf("[SUCCESS] Student Records List sorted. \n");
+                } else {
+                    fprintf(stderr, "[FAIL] Sort operation failed. %s\n", get_status_msg(sort_status));
+                }
                 break;
 
             case 7: //EXIT operation: flushes contents of student array onto the disk to ensure persistent storage
                 printf("[SHUTDOWN] Saving changes to disk...\n");
-                if (writeData(db.ptr, db.capacity, filename) == 0) {
+                Status_e write_status = writeData(db.ptr, db.count, filename);
+                if (write_status == STATUS_OK) {
                     printf("[SHUTDOWN] Data persisted successfully.\n");
                 } else {
-                    fprintf(stderr, "[ERROR] Failed to save data!\n");
+                    fprintf(stderr, "[ERROR] Failed to save data! %s\n", get_status_msg(write_status));
+                    continue;
                 }
                 
                 printf("[SHUTDOWN] Cleaning up memory.\n");

@@ -2,6 +2,7 @@
 #define HASH_H
 
 #include "student.h" // Logic dependency
+#include "utils.h"
 
 #define HASH_SIZE 101
 
@@ -24,17 +25,17 @@ int hash_function(int id);
 
 //function to initialize the hash table:
 Hashtable_t* hashtable_init(void);
-int insert_to_hash(Student_t* s_ptr, int n, Hashtable_t* ht);
+Status_e insert_to_hash(Student_t* s_ptr, int n, Hashtable_t* ht);
 
 //function for search functionality:
 Student_t* search_student(Hashtable_t* ht, int id); 
 
 //function to delete student from hash table and mark a tombstone:
-int delete_student_from_hash(Hashtable_t* ht, int id);
+Status_e delete_student_from_hash(Hashtable_t* ht, int id, StudentDB* db);
 
 //function to update student record:
-int update_student (Hashtable_t* ht, int id);
+Status_e update_student (Hashtable_t* ht, int id);
 
 //function to clear the hashtable:
-int hashtable_clear (Hashtable_t* ht);
+Status_e hashtable_clear (Hashtable_t* ht);
 #endif
