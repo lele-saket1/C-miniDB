@@ -261,8 +261,9 @@ Status_e handle_create_student(StudentDB* db, Hashtable_t* ht) {
         s->name[strcspn(s->name, "\n")] = 0;
 
         printf("Enter GPA: ");
-        if (scanf(" %f", &s->gpa) != 1) {
-             printf("Invalid GPA.\n");
+        if (scanf(" %f", &s->gpa) != 1 || s->gpa < 0.00 || s->gpa > 4.00) {
+             printf("Invalid GPA. GPA must be a number between 0.00 and 4.00!\n");
+             //tombstone record, since creation failed
              s->id = -1;
              clear_input_buffer();
              continue;

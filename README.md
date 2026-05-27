@@ -2,55 +2,20 @@
 
 # C-miniDB: A Student Record Manager
 
-## Overview
+## High-level Overview:
 
-This project is a command-line student database manager built from scratch in C. My primary motivation is to develop a deep, practical understanding of low-level C programming, focusing specifically on robust file I/O, disciplined dynamic memory management, and implementing data structures from first principles.
+This project is a command-line student database manager built from scratch in C. The fundamental unit for storage is a `Student_t` struct with `id`, `name` and `gpa` fields. It offers multiple options to the user: Viewing the current contents of the database, Adding new records to the database, searching for the records in the database according to `id`, Sorting and viewing all the records according to the `gpa`, Deleting records from the database, Updating records (after searching using `id`), and Saving/Exiting the program.
 
-## Version History
+## Program Design (Data-lifecycle):
+It utilizes a CSV-file for cold storage, where it stores these records line-by-line. When the Program boots up, the files contents are read into an in-RAM `Student_t` struct-array. The elements of this array are of course, the `Student_t` structs themselves. this is the 'main array' for the program. An in-memory hashtable is hydrated alongside the array, with a 101 buckets and a chain for each bucket. The Student records are loaded into the Hashtable, using their ID's to determine the bucket index. The hashtable's `Hashnodes` contain pointers to the respective `Student_t` structs in the 'main' array. ***NOTE: The Hashtable is INEXTENSIBLE***
 
-### Commit 8: The Error Handling Update
-* **The Error Enumerator Integration:** Integrated `Status_e` error enumerators into the entire `version_1` codebase for more robust error handling. Created and implemented `get_status_msg` function to convert enum messages into a more readable string-based format.
+When it comes time for adding records and the 'main' array does not have enough space to accomodate the incoming batch of `Student_t` structs, it utilizes a 'Geometric Growth Algorithm', to where it grows to double its original size. It uses a `realloc` call to achieve this. So, the pointers that the `Hashnode`s hold become (potentially) invalidated. Hence, the entire Hashtable is torn down and then rehydrated, in accordance with the current state of the main struct-array. ***NOTE: I know how inefficient this sounds, because it is. But, hey, this was my first project ever, and it's only version 1. So, I ask that you excuse this transgression.***
 
-### Commit 7: The Growth Logic Fix Update
-* **Geometric Growth Fix:** Optimized the logic for the `handle_create_student` function. The earlier version did not have provisions for running the duplicate record check while still creating new students.
+For the Sorting functionality, a temporary in-RAM array of pointers pointing to the original array of `Student_t` structs is created. This array is then run through a qsort algorithm to sort in the ascending order. Since it is a 'pointer' array, sorting it does not invalidate the main array and consequently the Hashtable nodes. ***NOTE: I am well aware that this is not in the least bit scalable.***
 
-### Commit 6: The Interactive Loop & Cleanup Update
+For deletion, the user needs to enter the `id` of the record that they want to delete from the database. This record is located using the Hashtable. The `id` is marked as '-1' for the `Student_t` struct on the main array. The corresponding `Hashnode` is then taken off the Hashtable. 
 
-* **Interactive Menu Loop:** Implemented the main `while(1)` loop to provide a persistent, interactive command-line interface for users to perform various database operations.
-* **Global Cleanup Function:** Developed a comprehensive `DBcleanup` function responsible for deallocating all dynamically allocated memory (Heap Array, Hash Table nodes, and Hash Table structure itself) to prevent memory leaks upon program exit.
-
-### Commit 5: The Architecture & Integrity Update (Current)
-
-* **Referential Integrity (Indirect Sorting):** Completely overhauled the sorting engine. Instead of sorting the main data array (which would shift memory addresses and invalidate Hash Table pointers), the system now creates and sorts an auxiliary array of pointers (`Student_t**`). This allows for ordered viewing while keeping the physical Heap Array and Hash Table consistent.
-* **Data Encapsulation:** Refactored the codebase to replace the temporary `Pair_t` struct with a robust `StudentDB` context structure. This centralizes the management of the data pointer, record count, and capacity.
-* **Separation of Concerns (Create):** Split the student creation process into two distinct layers: `get_fresh_slot` (Logic/Memory Allocation) and `handle_create_student` (UI/Input Validation).
-* **Update Operation:** Implemented the logic and UI wrappers for modifying existing records (`update_student`), allowing changes to Name and GPA while preserving the immutable ID.
-
-### Commit 4: The Deletion Update
-
-* **Hybrid Deletion Logic:** Implemented a robust deletion mechanism (`delete_student_from_hash`) that physically removes nodes from the Hash Table linked lists to free memory immediately.
-* **Tombstone Strategy:** Adopted a "soft delete" approach for the master data array by marking deleted student IDs as `-1` (tombstones). This preserves array integrity without requiring expensive memory shifting during runtime.
-* **Stability Fixes:** Resolved linker errors by reorganizing global variable definitions and fixed potential infinite loops in traversal functions.
-
-### Commit 3: The Search & Sort Update
-
-* **High-Performance Search:** Implemented a targeted lookup function using the hash table index to retrieve student records by ID.
-* **Generic Sorting Engine:** Integrated the C Standard Library's `qsort` to reorder the master record array by GPA.
-* **Abstraction via Callbacks:** Leveraged function pointers and custom comparator logic to handle floating-point precision during descending GPA sorts.
-* **Defensive Programming:** Hardened search and sort functions with NULL-pointer checks and memory-safety guards.
-
-### Commit 2: The Indexing Update
-
-* **Hash Table Implementation:** Introduced a `Hashtable_t` structure to manage student records in memory.
-* **Collision Resolution:** Implemented **Separate Chaining** using linked lists (`HashNode_t`) to handle hash collisions effectively.
-* **Bulk Indexing:** Added `insert_to_hash` to "hydrate" the hash table immediately after loading data from disk.
-
-### Commit 1: The Foundation
-
-* **Core Data Structure:** Defined the `Student_t` struct (ID, Name, GPA) to serve as the primary in-memory record format.
-* **CSV File Handling:** Implemented `readData` and `writeData` to handle persistence using a comma-separated text format.
-* **Dynamic Loading:** Engineered a two-pass file parser to count records and allocate exact heap memory.
-
+For the 'Save and Exit' optionality, the Hashtable is torn down. Then, the Contents of the 'main' array of `Student_t` structs is flushed to the disk (ommitting the tombstones), overwriting the previous contents. Then, the array too, is torn down, before the program finally exits.
 
 ## Key Engineering Decisions
 

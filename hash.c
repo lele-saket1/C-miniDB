@@ -137,7 +137,16 @@ Status_e update_student (Hashtable_t* ht, int id) {
         return ERR_INVALID_INPUT;
     }
 
-    (s_p)->name[strcspn((s_p)->name, "\n")] = 0; 
+    //check if user entered more than 50 characters (49 chars + newline)
+    //check if newline exists in the string and get location of its first occurence, if it does
+    char *newline = strchr(s_p->name, '\n');
+    if (newline) {
+        //if it exists within the string, user entered <= 49 chars
+        *newline = '\0';        //replace the newline with the null terminator
+    } else {
+        //if no newline found, clear input pipes
+        clear_input_buffer();
+    }
 
     printf("Update Student GPA: \n");
     if (scanf(" %f", &s_p->gpa) != 1) {

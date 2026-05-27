@@ -66,7 +66,16 @@ int main(void) {
     int valid_records = 0;
     for (int i = 0; i < db.capacity; i++) {
         if ((db.ptr + i)->id != -1) {
-            insert_to_hash((db.ptr + i), 1, ht);
+            Status_e hydration_status = insert_to_hash((db.ptr + i), 1, ht);
+
+            //Check if hashnode insertion was successful:
+            if (hydration_status != STATUS_OK) {
+                //if not successful, print error message and Cleanup everything that has been allocated so far:
+                fprintf(stderr, "[FATAL] Hash table hydration failed. System state inconsistent.\n");
+                DBcleanup(&ht, &db);    
+                return -1;
+            }
+
             valid_records++;
         }
     }
