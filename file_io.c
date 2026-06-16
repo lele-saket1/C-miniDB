@@ -10,18 +10,34 @@
  * These functions are responsible for reading data from the database file
  * and validating its structure during the loading process.
  */
+/**
+ * @brief Creates a new, valid, and empty FRASE database backing file.
+ * @param path The file path where the empty database file should be created.
+ * @return     `FILE_IO_OK` on success, or an appropriate `FileIoError` code on failure.
+ */
 static FileIoError file_io_create_empty_file(const char *path);
 
+/**
+ * @brief Reads the `FileSuperBlock` from the beginning of the file stream.
+ * @param file       The file pointer to read from.
+ * @param superblock Pointer to the `FileSuperBlock` structure to populate.
+ * @return           `FILE_IO_OK` on success, or an error code on failure.
+ */
 static FileIoError file_io_read_superblock(FILE *file, FileSuperBlock *superblock);
 
+/**
+ * @brief Performs structural validation on a `FileSuperBlock`.
+ * @param superblock Pointer to the `FileSuperBlock` structure to validate.
+ * @return           `FILE_IO_OK` if the superblock is valid, or an error code if corrupted.
+ */
 static FileIoError file_io_validate_superblock(const FileSuperBlock *superblock);
 
-/*
- * Reads a chunk's header and its record payload from the file.
- * @param file The file pointer.
- * @param chunk Pointer to the Chunk structure to populate.
+/**
+ * @brief Reads a chunk's header and its record payload from the file.
+ * @param file              The file pointer.
+ * @param chunk             Pointer to the `Chunk` structure to populate.
  * @param expected_chunk_id The expected logical ID of the chunk being read.
- * @return FILE_IO_OK on success, or an error code on failure.
+ * @return                  `FILE_IO_OK` on success, or an error code on failure.
  */
 static FileIoError file_io_read_chunk(
     FILE *file,
@@ -29,6 +45,12 @@ static FileIoError file_io_read_chunk(
     uint32_t expected_chunk_id
 );
 
+/**
+ * @brief Performs structural validation on a `FileChunkHeader`.
+ * @param header            Pointer to the `FileChunkHeader` structure to validate.
+ * @param expected_chunk_id The logical ID that the chunk header's `chunk_id` should match.
+ * @return                  `FILE_IO_OK` if the chunk header is valid, or an error code if corrupted.
+ */
 static FileIoError file_io_validate_chunk_header(
     const FileChunkHeader *header,
     uint32_t expected_chunk_id
@@ -38,6 +60,12 @@ static FileIoError file_io_validate_chunk_header(
  * Private output-phase helper functions.
  * These functions handle writing data to the database file during save operations.
  */
+/**
+ * @brief Constructs a `FileSuperBlock` from the `ChunkManager` and writes it to the beginning of the file.
+ * @param file    The file pointer to write to.
+ * @param manager Pointer to the `ChunkManager` containing the current database state.
+ * @return        `FILE_IO_OK` on success, or an error code on failure.
+ */
 static FileIoError file_io_write_superblock(
     FILE *file,
     const ChunkManager *manager
@@ -45,48 +73,124 @@ static FileIoError file_io_write_superblock(
 
 /*
  * Writes a complete chunk section (header + payload) to the file.
- * The caller is responsible for seeking to the correct file offset beforehand.
- * @param file The file pointer.
- * @param chunk Pointer to the Chunk structure to write.
- * @return FILE_IO_OK on success, or an error code on failure.
+ * @param file  The file pointer.
+ * @param chunk Pointer to the `Chunk` structure to write.
+ * @return      `FILE_IO_OK` on success, or an error code on failure.
  */
 static FileIoError file_io_write_chunk(FILE *file, const Chunk *chunk);
 
+/**
+ * @brief Iterates through all chunks in the `ChunkManager` and sets their `dirty` flag to `false`.
+ * @param manager Pointer to the `ChunkManager` whose chunks should be marked clean.
+ * @return        `FILE_IO_OK` on success, or `FILE_IO_ERR_NULL_ARGUMENT` if manager is NULL.
+ */
 static FileIoError file_io_mark_chunks_clean(ChunkManager *manager);
 
 /*
  * Private common helper functions.
  * These functions provide utility operations used by both input and output phases.
  */
+/**
+ * @brief Calculates the byte offset within the backing file where a specific chunk begins.
+ * @param chunk_id The logical ID of the chunk.
+ * @return         The byte offset of the chunk within the file.
+ */
 static uint64_t file_io_chunk_offset(uint32_t chunk_id);
 
+/**
+ * @brief Moves the file cursor to the beginning of the specified chunk section.
+ * @param file     The file pointer to seek within.
+ * @param chunk_id The logical ID of the chunk to seek to.
+ * @return         `FILE_IO_OK` on success, or an error code on failure.
+ */
 static FileIoError file_io_seek_to_chunk(FILE *file, uint32_t chunk_id);
 
-
 /*
- * file_io_load
+ * Private compaction helper functions.
+ * These functions are used internally by `file_io_compact` to manage the compaction process.
+ */
+/**
+ * @brief Generates a temporary file path by appending ".tmp" to the original path.
+ * @param path The original file path.
+ * @return     A dynamically allocated string containing the temporary path,
+ *             or `NULL` on allocation failure. The caller is responsible for freeing this string.
+ */
+static char *file_io_make_temp_path(const char *path);
+
+/**
+ * @brief Computes the ceiling division of two unsigned 64-bit integers.
+ * @param numerator   The dividend.
+ * @param denominator The divisor.
+ * @return            `ceil(numerator / denominator)`. Returns 0 if denominator is 0 or numerator is 0.
+ */
+static uint64_t file_io_ceil_div_u64(uint64_t numerator, uint64_t denominator);
+
+/**
+ * @brief Writes a new, compacted `FileSuperBlock` to the temporary file.
+ * @param new_file       The file pointer to the new (compacted) file.
+ * @param old_superblock Pointer to the `FileSuperBlock` from the original file.
+ * @return               `FILE_IO_OK` on success, or an error code on failure.
+ */
+static FileIoError file_io_write_compacted_superblock(
+    FILE *new_file,
+    const FileSuperBlock *old_superblock
+);
+
+/**
+ * @brief Writes a single compacted chunk (header + payload) to the temporary file.
+ * @param new_file   The file pointer to the new (compacted) file.
+ * @param records    Pointer to an array of `StudentRecord`s to write.
+ * @param used_slots The number of live records in this output chunk.
+ * @param chunk_id   The new logical ID for this compacted chunk.
+ * @return           `FILE_IO_OK` on success, or an error code on failure.
+ */
+static FileIoError file_io_write_compacted_chunk(
+    FILE *new_file,
+    const StudentRecord *records,
+    size_t used_slots,
+    uint32_t chunk_id
+);
+
+/**
+ * @brief Copies all live records from the old database file into the new, compacted file.
  *
- * Public function to load the database from a backing file into memory.
- * This function is typically called once during application startup.
+ * This function iterates through the old file, reads chunks, filters out tombstoned
+ * records, and writes the live records into new, full chunks in the compacted file.
+ * @param old_file       The file pointer to the original database file.
+ * @param new_file       The file pointer to the new (compacted) database file.
+ * @param old_superblock Pointer to the `FileSuperBlock` from the original file.
+ * @return               `FILE_IO_OK` on success, or an error code on failure.
+ */
+static FileIoError file_io_copy_live_records_into_compacted_file(
+    FILE *old_file,
+    FILE *new_file,
+    const FileSuperBlock *old_superblock
+);
+
+/**
+ * @brief Replaces the old database file with the newly compacted temporary file.
+ * @param old_path The path to the original database file.
+ * @param temp_path The path to the temporary compacted file.
+ * @return          `FILE_IO_OK` on success, or `FILE_IO_ERR_RENAME_FAILED` if the rename operation fails.
+ */
+static FileIoError file_io_replace_file(
+    const char *old_path,
+    const char *temp_path
+);
+
+
+
+/**
+ * @brief Loads the database from a backing file into memory.
  *
- * The loading process involves:
- *   - Opening the specified backing file.
- *   - Creating an empty FRASE file if the file does not exist or is empty.
- *   - Reading and validating the `FileSuperBlock`.
- *   - Allocating memory for the `ChunkManager`'s array of `Chunk` structures.
- *   - Iterating through the file to read each `FileChunkHeader` and its
- *     corresponding `StudentRecord` payload.
- *   - Marking all newly loaded chunks as 'clean' (not modified).
+ * This function is typically called once during application startup to
+ * initialize the `ChunkManager` with data from the persistent storage.
+ * It handles file opening, superblock validation, and reading all chunks.
  *
- * Important:
- *   This function allocates dynamic memory for `manager->chunks` and for
- *   each `chunk->records` array. It is the caller's responsibility to
- *   free this memory when the `ChunkManager` is no longer needed.
- *
- * @param path The file path to the database backing file.
- * @param manager Pointer to the ChunkManager structure to populate with loaded data.
- * @return FILE_IO_OK on successful load, or an appropriate FileIoError code on failure.
-*/
+ * @param path    The file path to the database backing file.
+ * @param manager Pointer to the `ChunkManager` structure to populate with loaded data.
+ * @return        `FILE_IO_OK` on successful load, or an appropriate `FileIoError` code on failure.
+ */
 
 FileIoError file_io_load(const char *path, ChunkManager *manager)
 {
@@ -303,26 +407,17 @@ FileIoError file_io_load(const char *path, ChunkManager *manager)
 }
 
 
-/*
- * file_io_save
+/**
+ * @brief Saves the current state of the `ChunkManager` to the database backing file.
  *
- * Public function to save the current state of the `ChunkManager` to the
- * database backing file. This is typically called during a save operation
- * or before application shutdown.
+ * This function is typically called during a save operation or before application
+ * shutdown. It writes only 'dirty' (modified) chunks back to disk and updates
+ * the `FileSuperBlock`.
  *
- * The saving process involves:
- *   - Opening the backing file in read/write binary mode.
- *   - Iterating through all chunks and writing only the 'dirty' ones
- *     (those that have been modified) back to their fixed offsets in the file.
- *   - Writing the updated `FileSuperBlock` to reflect the current state.
- *   - Flushing all buffered data to disk and closing the file.
- *   - Marking all chunks as 'clean' (not modified) only after the entire
- *     save operation has successfully completed.
- *
- * @param path The file path to the database backing file.
- * @param manager Pointer to the ChunkManager containing the data to save.
- * @return FILE_IO_OK on successful save, or an appropriate FileIoError code on failure.
-*/
+ * @param path    The file path to the database backing file.
+ * @param manager Pointer to the `ChunkManager` containing the data to save.
+ * @return        `FILE_IO_OK` on successful save, or an appropriate `FileIoError` code on failure.
+ */
 
 FileIoError file_io_save(const char *path, ChunkManager *manager)
 {
@@ -419,16 +514,11 @@ FileIoError file_io_save(const char *path, ChunkManager *manager)
 }
 
 
-/*
- * file_io_error_string
- *
- * Converts a `FileIoError` enumeration value into a human-readable string.
- * This function is primarily intended for logging, debugging, or displaying
- * error messages to the user.
- *
- * @param error The FileIoError code to convert.
- * @return A constant string literal describing the error.
-*/
+/**
+ * @brief Converts a `FileIoError` enumeration value into a human-readable string.
+ * @param error The `FileIoError` code to convert.
+ * @return      A constant string literal describing the error.
+ */
 
 const char *file_io_error_string(FileIoError error)
 {
@@ -472,26 +562,23 @@ const char *file_io_error_string(FileIoError error)
         case FILE_IO_ERR_ALLOCATION_FAILED:
             return "file I/O: allocation failed";
 
+        case FILE_IO_ERR_RENAME_FAILED:
+            return "file I/O: rename failed";
+
         default:
             return "file I/O: unknown error";
+
     }
 }
 
 
-/*
- * file_io_create_empty_file
+/**
+ * @brief Creates a new, valid, and empty FRASE database backing file.
  *
- * Creates a new, valid, and empty FRASE database backing file at the specified path.
- * An "empty" file in this context means:
- *   - `chunk_count` is 0
- *   - `total_used_slots` is 0
- *   - `total_tombstones` is 0
- * No actual chunk sections (headers or payloads) are written to the file yet.
- * This function initializes the file with a valid `FileSuperBlock`.
- *
+ * An "empty" file means a valid `FileSuperBlock` with zero chunks and records.
  * @param path The file path where the empty database file should be created.
- * @return FILE_IO_OK on success, or an appropriate FileIoError code on failure.
-*/
+ * @return     `FILE_IO_OK` on success, or an appropriate `FileIoError` code on failure.
+ */
 
 static FileIoError file_io_create_empty_file(const char *path)
 {
@@ -531,16 +618,14 @@ static FileIoError file_io_create_empty_file(const char *path)
 }
 
 
-/*
- * file_io_read_superblock
+/**
+ * @brief Reads the `FileSuperBlock` from the beginning of the file stream.
  *
- * Reads the `FileSuperBlock` (global file header) from the very beginning
- * of the provided file stream. The file pointer is reset to the start before reading.
- *
- * @param file The file pointer to read from.
- * @param superblock Pointer to the FileSuperBlock structure to populate.
- * @return FILE_IO_OK on success, or an error code on failure.
-*/
+ * The file pointer is reset to the start before reading.
+ * @param file       The file pointer to read from.
+ * @param superblock Pointer to the `FileSuperBlock` structure to populate.
+ * @return           `FILE_IO_OK` on success, or an error code on failure.
+ */
 
 static FileIoError file_io_read_superblock(FILE *file, FileSuperBlock *superblock)
 {
@@ -560,15 +645,13 @@ static FileIoError file_io_read_superblock(FILE *file, FileSuperBlock *superbloc
 }
 
 
-/*
- * file_io_validate_superblock
+/**
+ * @brief Performs structural validation on a `FileSuperBlock`.
  *
- * Performs structural validation on a `FileSuperBlock` to ensure its integrity
- * and consistency with the defined file format and internal logic.
- *
- * @param superblock Pointer to the FileSuperBlock structure to validate.
- * @return FILE_IO_OK if the superblock is valid, or an error code if corrupted.
-*/
+ * Ensures its integrity and consistency with the defined file format.
+ * @param superblock Pointer to the `FileSuperBlock` structure to validate.
+ * @return           `FILE_IO_OK` if the superblock is valid, or an error code if corrupted.
+ */
 
 static FileIoError file_io_validate_superblock(const FileSuperBlock *superblock)
 {
@@ -611,20 +694,15 @@ static FileIoError file_io_validate_superblock(const FileSuperBlock *superblock)
 }
 
 
-/*
- * file_io_read_chunk
+/**
+ * @brief Reads a complete chunk section (header + payload) from the file.
  *
- * Reads a complete chunk section from the current position in the file stream.
- * This includes reading the `FileChunkHeader` followed by the full
- * `StudentRecord` payload (an array of `FRASE_CHUNK_RECORD_CAPACITY` records).
- * The `Chunk` structure is populated with the data, and its `dirty` flag is
- * set to `false` as it has just been loaded from disk.
- *
- * @param file The file pointer to read from.
- * @param chunk Pointer to the Chunk structure to populate.
+ * The `Chunk` structure is populated, and its `dirty` flag is set to `false`.
+ * @param file              The file pointer to read from.
+ * @param chunk             Pointer to the `Chunk` structure to populate.
  * @param expected_chunk_id The expected logical ID of the chunk being read.
- * @return FILE_IO_OK on success, or an error code on failure.
-*/
+ * @return                  `FILE_IO_OK` on success, or an error code on failure.
+ */
 
 static FileIoError file_io_read_chunk(
     FILE *file,
@@ -678,16 +756,14 @@ static FileIoError file_io_read_chunk(
 }
 
 
-/*
- * file_io_validate_chunk_header
+/**
+ * @brief Performs structural validation on a `FileChunkHeader`.
  *
- * Performs structural validation on a `FileChunkHeader` to ensure its integrity
- * and consistency, including checking its `chunk_id` against an expected value.
- *
- * @param header Pointer to the FileChunkHeader structure to validate.
+ * Ensures its integrity and consistency, including checking its `chunk_id`.
+ * @param header            Pointer to the `FileChunkHeader` structure to validate.
  * @param expected_chunk_id The logical ID that the chunk header's `chunk_id` should match.
- * @return FILE_IO_OK if the chunk header is valid, or an error code if corrupted.
-*/
+ * @return                  `FILE_IO_OK` if the chunk header is valid, or an error code if corrupted.
+ */
 
 static FileIoError file_io_validate_chunk_header(
     const FileChunkHeader *header,
@@ -719,16 +795,12 @@ static FileIoError file_io_validate_chunk_header(
 }
 
 
-/*
- * file_io_write_superblock
- *
- * Constructs a `FileSuperBlock` from the current state of the `ChunkManager`
- * and writes it to the beginning of the file.
- *
- * @param file The file pointer to write to.
- * @param manager Pointer to the ChunkManager containing the current database state.
- * @return FILE_IO_OK on success, or an error code on failure.
-*/
+/**
+ * @brief Constructs a `FileSuperBlock` from the `ChunkManager` and writes it to the beginning of the file.
+ * @param file    The file pointer to write to.
+ * @param manager Pointer to the `ChunkManager` containing the current database state.
+ * @return        `FILE_IO_OK` on success, or an error code on failure.
+ */
 
 static FileIoError file_io_write_superblock(
     FILE *file,
@@ -774,17 +846,14 @@ static FileIoError file_io_write_superblock(
 }
 
 
-/*
- * file_io_write_chunk
+/**
+ * @brief Writes a complete chunk section (header + payload) to the file.
  *
- * Writes a complete chunk section (including its `FileChunkHeader` and
- * `StudentRecord` payload) to the file. It is crucial that the caller
- * has already positioned the file cursor to the correct offset for this chunk.
- *
- * @param file The file pointer to write to.
- * @param chunk Pointer to the Chunk structure to write.
- * @return FILE_IO_OK on success, or an error code on failure.
-*/
+ * The caller must ensure the file cursor is at the correct offset.
+ * @param file  The file pointer to write to.
+ * @param chunk Pointer to the `Chunk` structure to write.
+ * @return      `FILE_IO_OK` on success, or an error code on failure.
+ */
 
 static FileIoError file_io_write_chunk(FILE *file, const Chunk *chunk)
 {
@@ -825,14 +894,13 @@ static FileIoError file_io_write_chunk(FILE *file, const Chunk *chunk)
 }
 
 
-/*
- * file_io_mark_chunks_clean
+/**
+ * @brief Iterates through all chunks in the `ChunkManager` and sets their `dirty` flag to `false`.
  *
- * Iterates through all chunks managed by the `ChunkManager` and sets their
- * `dirty` flag to `false`. This is typically called after a successful save
- * operation to indicate that the in-memory state is synchronized with the disk.
- * @param manager Pointer to the ChunkManager whose chunks should be marked clean.
-*/
+ * This is typically called after a successful save operation.
+ * @param manager Pointer to the `ChunkManager` whose chunks should be marked clean.
+ * @return        `FILE_IO_OK` on success, or `FILE_IO_ERR_NULL_ARGUMENT` if manager is NULL.
+ */
 
 static FileIoError file_io_mark_chunks_clean(ChunkManager *manager)
 {
@@ -850,26 +918,13 @@ static FileIoError file_io_mark_chunks_clean(ChunkManager *manager)
 }
 
 
-/*
- * file_io_chunk_offset
+/**
+ * @brief Calculates the byte offset within the backing file where a specific chunk begins.
  *
- * Calculates the byte offset within the backing file where a specific chunk
- * (identified by `chunk_id`) begins. This calculation relies on the fixed
- * file layout:
- *
- * File Layout:
- *   - `FileSuperBlock` (fixed size at the beginning)
- *   - `Chunk Section 0` (header + payload)
- *   - `Chunk Section 1` (header + payload)
- *   - `Chunk Section 2` (header + payload)
- *   - ... and so on.
- *
- * The offset for `chunk_id` N is therefore:
- *   `sizeof(FileSuperBlock) + (N * FRASE_FILE_CHUNK_SECTION_SIZE)`
- *
+ * This calculation relies on the fixed file layout: `sizeof(FileSuperBlock) + (N * FRASE_FILE_CHUNK_SECTION_SIZE)`.
  * @param chunk_id The logical ID of the chunk.
- * @return The byte offset of the chunk within the file.
-*/
+ * @return         The byte offset of the chunk within the file.
+ */
 
 static uint64_t file_io_chunk_offset(uint32_t chunk_id)
 {
@@ -878,17 +933,14 @@ static uint64_t file_io_chunk_offset(uint32_t chunk_id)
 }
 
 
-/*
- * file_io_seek_to_chunk
+/**
+ * @brief Moves the file cursor to the beginning of the specified chunk section.
  *
- * Moves the file cursor (seek pointer) to the beginning of the specified
- * chunk section within the file. This uses `file_io_chunk_offset` to
- * determine the target position.
- *
- * @param file The file pointer to seek within.
+ * Uses `file_io_chunk_offset` to determine the target position.
+ * @param file     The file pointer to seek within.
  * @param chunk_id The logical ID of the chunk to seek to.
- * @return FILE_IO_OK on success, or an error code on failure.
-*/
+ * @return         `FILE_IO_OK` on success, or an error code on failure.
+ */
 
 static FileIoError file_io_seek_to_chunk(FILE *file, uint32_t chunk_id)
 {
@@ -912,6 +964,513 @@ static FileIoError file_io_seek_to_chunk(FILE *file, uint32_t chunk_id)
 
     if (fseek(file, (long)offset, SEEK_SET) != 0) {
         return FILE_IO_ERR_SEEK_FAILED;
+    }
+
+    return FILE_IO_OK;
+}
+
+/**
+ * @brief Reads file statistics (metadata) from the superblock without loading all chunks.
+ * @param path  The file path to the database backing file.
+ * @param stats Pointer to a `FileStats` structure to populate with the read statistics.
+ * @return      `FILE_IO_OK` on success, or an appropriate `FileIoError` code on failure.
+ */
+
+FileIoError file_io_read_stats(const char *path, FileStats *stats)
+{
+    FILE *file;
+    FileSuperBlock superblock;
+    FileIoError error;
+
+    if (path == NULL || stats == NULL) {
+        return FILE_IO_ERR_NULL_ARGUMENT;
+    }
+
+    memset(stats, 0, sizeof(*stats));
+
+    file = fopen(path, "rb");
+
+    if (file == NULL) {
+        /*
+            If the file does not exist yet, treat it as an empty database.
+            The later file_io_load() call can create the actual empty file.
+        */
+        return FILE_IO_OK;
+    }
+
+    error = file_io_read_superblock(file, &superblock);
+
+    if (error != FILE_IO_OK) {
+        fclose(file);
+        return error;
+    }
+
+    error = file_io_validate_superblock(&superblock);
+
+    if (error != FILE_IO_OK) {
+        fclose(file);
+        return error;
+    }
+
+    stats->chunk_count = superblock.chunk_count;
+    stats->total_used_slots = superblock.total_used_slots;
+    stats->total_tombstones = superblock.total_tombstones;
+
+    if (fclose(file) != 0) {
+        return FILE_IO_ERR_CLOSE_FAILED;
+    }
+
+    return FILE_IO_OK;
+}
+
+/**
+ * @brief Compacts the database file by removing tombstoned records and rewriting
+ *        live records into a new, optimized file layout.
+ *
+ * This function creates a temporary compacted file, copies only active records,
+ * and then replaces the original file with the compacted version.
+ * After compaction, `total_tombstones` will be 0, and `total_used_slots` will
+ * reflect the count of active records. All non-tail chunks will be full.
+ *
+ * @param path The file path to the database backing file to compact.
+ * @return     `FILE_IO_OK` on successful compaction, or an appropriate `FileIoError` code on failure.
+ */
+
+FileIoError file_io_compact(const char *path)
+{
+    FILE *old_file;
+    FILE *new_file;
+
+    char *temp_path;
+
+    FileSuperBlock old_superblock;
+    FileIoError error;
+
+    if (path == NULL) {
+        return FILE_IO_ERR_NULL_ARGUMENT;
+    }
+
+    temp_path = file_io_make_temp_path(path);
+
+    if (temp_path == NULL) {
+        return FILE_IO_ERR_ALLOCATION_FAILED;
+    }
+
+    old_file = fopen(path, "rb");
+
+    if (old_file == NULL) {
+        free(temp_path);
+        return FILE_IO_ERR_OPEN_FAILED;
+    }
+
+    error = file_io_read_superblock(old_file, &old_superblock);
+
+    if (error != FILE_IO_OK) {
+        fclose(old_file);
+        free(temp_path);
+        return error;
+    }
+
+    error = file_io_validate_superblock(&old_superblock);
+
+    if (error != FILE_IO_OK) {
+        fclose(old_file);
+        free(temp_path);
+        return error;
+    }
+
+    new_file = fopen(temp_path, "wb");
+
+    if (new_file == NULL) {
+        fclose(old_file);
+        free(temp_path);
+        return FILE_IO_ERR_OPEN_FAILED;
+    }
+
+    error = file_io_write_compacted_superblock(new_file, &old_superblock);
+
+    if (error != FILE_IO_OK) {
+        fclose(old_file);
+        fclose(new_file);
+        remove(temp_path);
+        free(temp_path);
+        return error;
+    }
+
+    error = file_io_copy_live_records_into_compacted_file(
+        old_file,
+        new_file,
+        &old_superblock
+    );
+
+    if (error != FILE_IO_OK) {
+        fclose(old_file);
+        fclose(new_file);
+        remove(temp_path);
+        free(temp_path);
+        return error;
+    }
+
+    if (fflush(new_file) != 0) {
+        fclose(old_file);
+        fclose(new_file);
+        remove(temp_path);
+        free(temp_path);
+        return FILE_IO_ERR_FLUSH_FAILED;
+    }
+
+    if (fclose(old_file) != 0) {
+        fclose(new_file);
+        remove(temp_path);
+        free(temp_path);
+        return FILE_IO_ERR_CLOSE_FAILED;
+    }
+
+    if (fclose(new_file) != 0) {
+        remove(temp_path);
+        free(temp_path);
+        return FILE_IO_ERR_CLOSE_FAILED;
+    }
+
+    error = file_io_replace_file(path, temp_path);
+
+    if (error != FILE_IO_OK) {
+        remove(temp_path);
+        free(temp_path);
+        return error;
+    }
+
+    free(temp_path);
+
+    return FILE_IO_OK;
+}
+
+/**
+ * @brief Generates a temporary file path by appending ".tmp" to the original path.
+ *
+ * The caller is responsible for freeing the returned string.
+ * @param path The original file path.
+ * @return     A dynamically allocated string containing the temporary path,
+ *             or `NULL` on allocation failure.
+ */
+
+static char *file_io_make_temp_path(const char *path)
+{
+    size_t path_length;
+    char *temp_path;
+
+    if (path == NULL) {
+        return NULL;
+    }
+
+    path_length = strlen(path);
+
+    temp_path = malloc(path_length + 5);
+
+    if (temp_path == NULL) {
+        return NULL;
+    }
+
+    memcpy(temp_path, path, path_length);
+    memcpy(temp_path + path_length, ".tmp", 5);
+
+    return temp_path;
+}
+
+
+/**
+ * @brief Computes the ceiling division of two unsigned 64-bit integers.
+ * @param numerator   The dividend.
+ * @param denominator The divisor.
+ * @return            `ceil(numerator / denominator)`. Returns 0 if denominator is 0 or numerator is 0.
+ */
+
+static uint64_t file_io_ceil_div_u64(uint64_t numerator, uint64_t denominator)
+{
+    if (denominator == 0) {
+        return 0;
+    }
+
+    if (numerator == 0) {
+        return 0;
+    }
+
+    return 1 + ((numerator - 1) / denominator);
+}
+
+
+/**
+ * @brief Writes a new, compacted `FileSuperBlock` to the temporary file.
+ *
+ * This function calculates the new `chunk_count`, `total_used_slots`, and
+ * sets `total_tombstones` to 0 based on the old superblock's data.
+ * @param new_file       The file pointer to the new (compacted) file.
+ * @param old_superblock Pointer to the `FileSuperBlock` from the original file.
+ * @return               `FILE_IO_OK` on success, or an error code on failure.
+ */
+
+static FileIoError file_io_write_compacted_superblock(
+    FILE *new_file,
+    const FileSuperBlock *old_superblock
+)
+{
+    FileSuperBlock new_superblock;
+    uint64_t active_records;
+    uint64_t new_chunk_count;
+
+    if (new_file == NULL || old_superblock == NULL) {
+        return FILE_IO_ERR_NULL_ARGUMENT;
+    }
+
+    if (old_superblock->total_tombstones > old_superblock->total_used_slots) {
+        return FILE_IO_ERR_CORRUPT_SUPERBLOCK;
+    }
+
+    active_records =
+        old_superblock->total_used_slots -
+        old_superblock->total_tombstones;
+
+    new_chunk_count = file_io_ceil_div_u64(
+        active_records,
+        (uint64_t)FRASE_CHUNK_RECORD_CAPACITY
+    );
+
+    memset(&new_superblock, 0, sizeof(new_superblock));
+
+    new_superblock.magic = FRASE_FILE_MAGIC;
+    new_superblock.version = FRASE_FILE_VERSION;
+    new_superblock.chunk_count = new_chunk_count;
+    new_superblock.total_used_slots = active_records;
+    new_superblock.total_tombstones = 0;
+
+    if (fseek(new_file, 0, SEEK_SET) != 0) {
+        return FILE_IO_ERR_SEEK_FAILED;
+    }
+
+    if (fwrite(&new_superblock, sizeof(new_superblock), 1, new_file) != 1) {
+        return FILE_IO_ERR_WRITE_FAILED;
+    }
+
+    return FILE_IO_OK;
+}
+
+
+/**
+ * @brief Writes a single compacted chunk (header + payload) to the temporary file.
+ * @param new_file   The file pointer to the new (compacted) file.
+ * @param records    Pointer to an array of `StudentRecord`s to write. This buffer
+ *                   is expected to be `FRASE_CHUNK_RECORD_CAPACITY` in size.
+ * @param used_slots The number of live records in this output chunk.
+ * @param chunk_id   The new logical ID for this compacted chunk.
+ * @return           `FILE_IO_OK` on success, or an error code on failure.
+ */
+
+static FileIoError file_io_write_compacted_chunk(
+    FILE *new_file,
+    const StudentRecord *records,
+    size_t used_slots,
+    uint32_t chunk_id
+)
+{
+    FileChunkHeader header;
+
+    if (new_file == NULL || records == NULL) {
+        return FILE_IO_ERR_NULL_ARGUMENT;
+    }
+
+    if (used_slots > FRASE_CHUNK_RECORD_CAPACITY) {
+        return FILE_IO_ERR_CORRUPT_CHUNK_HEADER;
+    }
+
+    memset(&header, 0, sizeof(header));
+
+    header.chunk_id = chunk_id;
+    header.used_slots = (uint64_t)used_slots;
+    header.tombstones = 0;
+
+    if (fwrite(&header, sizeof(header), 1, new_file) != 1) {
+        return FILE_IO_ERR_WRITE_FAILED;
+    }
+
+    if (fwrite(
+            records,
+            sizeof(StudentRecord),
+            FRASE_CHUNK_RECORD_CAPACITY,
+            new_file
+        ) != FRASE_CHUNK_RECORD_CAPACITY) {
+        return FILE_IO_ERR_WRITE_FAILED;
+    }
+
+    return FILE_IO_OK;
+}
+
+
+/**
+ * @brief Copies all live records from the old database file into the new, compacted file.
+ *
+ * This is the main compaction loop. It reads chunks from the `old_file`,
+ * filters out tombstoned records, and buffers live records. When the buffer
+ * is full, it writes a new compacted chunk to `new_file`.
+ * Handles writing any remaining partial tail chunk at the end.
+ * @param old_file       The file pointer to the original database file.
+ * @param new_file       The file pointer to the new (compacted) database file.
+ * @param old_superblock Pointer to the `FileSuperBlock` from the original file.
+ * @return               `FILE_IO_OK` on success, or an error code on failure.
+ */
+
+static FileIoError file_io_copy_live_records_into_compacted_file(
+    FILE *old_file,
+    FILE *new_file,
+    const FileSuperBlock *old_superblock
+)
+{
+    StudentRecord *buffer;
+
+    uint64_t old_chunk_index;
+    uint32_t output_chunk_id;
+
+    size_t buffer_used;
+
+    FileIoError error;
+
+    if (old_file == NULL || new_file == NULL || old_superblock == NULL) {
+        return FILE_IO_ERR_NULL_ARGUMENT;
+    }
+
+    buffer = calloc(FRASE_CHUNK_RECORD_CAPACITY, sizeof(StudentRecord));
+
+    if (buffer == NULL) {
+        return FILE_IO_ERR_ALLOCATION_FAILED;
+    }
+
+    buffer_used = 0;
+    output_chunk_id = 0;
+
+    for (old_chunk_index = 0;
+         old_chunk_index < old_superblock->chunk_count;
+         old_chunk_index++) {
+
+        FileChunkHeader old_header;
+        size_t slot;
+
+        if (fread(&old_header, sizeof(old_header), 1, old_file) != 1) {
+            free(buffer);
+            return FILE_IO_ERR_READ_FAILED;
+        }
+
+        error = file_io_validate_chunk_header(
+            &old_header,
+            (uint32_t)old_chunk_index
+        );
+
+        if (error != FILE_IO_OK) {
+            free(buffer);
+            return error;
+        }
+
+        /*
+            Read all 1024 payload records so the file cursor naturally lands
+            at the next chunk header.
+
+            But only slots below old_header.used_slots are logically meaningful.
+        */
+
+        for (slot = 0; slot < FRASE_CHUNK_RECORD_CAPACITY; slot++) {
+            StudentRecord record;
+
+            if (fread(&record, sizeof(record), 1, old_file) != 1) {
+                free(buffer);
+                return FILE_IO_ERR_READ_FAILED;
+            }
+
+            if ((uint64_t)slot >= old_header.used_slots) {
+                continue;
+            }
+
+            if (record.id == FRASE_TOMBSTONE_ID) {
+                continue;
+            }
+
+            buffer[buffer_used] = record;
+            buffer_used++;
+
+            if (buffer_used == FRASE_CHUNK_RECORD_CAPACITY) {
+                error = file_io_write_compacted_chunk(
+                    new_file,
+                    buffer,
+                    buffer_used,
+                    output_chunk_id
+                );
+
+                if (error != FILE_IO_OK) {
+                    free(buffer);
+                    return error;
+                }
+
+                memset(
+                    buffer,
+                    0,
+                    FRASE_CHUNK_RECORD_CAPACITY * sizeof(StudentRecord)
+                );
+
+                buffer_used = 0;
+                output_chunk_id++;
+            }
+        }
+    }
+
+    /*
+        Write the final partially filled tail chunk, if any live records remain.
+    */
+
+    if (buffer_used > 0) {
+        error = file_io_write_compacted_chunk(
+            new_file,
+            buffer,
+            buffer_used,
+            output_chunk_id
+        );
+
+        if (error != FILE_IO_OK) {
+            free(buffer);
+            return error;
+        }
+    }
+
+    free(buffer);
+
+    return FILE_IO_OK;
+}
+
+
+/**
+ * @brief Replaces the old database file with the newly compacted temporary file.
+ *
+ * This involves removing the original file and renaming the temporary file.
+ * Note: This implementation is not fully crash-safe, but is acceptable for FRASE V1.
+ * @param old_path  The path to the original database file.
+ * @param temp_path The path to the temporary compacted file.
+ * @return          `FILE_IO_OK` on success, or `FILE_IO_ERR_RENAME_FAILED` if the rename operation fails.
+ */
+
+static FileIoError file_io_replace_file(
+    const char *old_path,
+    const char *temp_path
+)
+{
+    if (old_path == NULL || temp_path == NULL) {
+        return FILE_IO_ERR_NULL_ARGUMENT;
+    }
+
+    /*
+        If remove fails because the file does not exist, rename will catch the
+        real problem anyway. We keep this simple for Version 1.
+    */
+
+    remove(old_path);
+
+    if (rename(temp_path, old_path) != 0) {
+        return FILE_IO_ERR_RENAME_FAILED;
     }
 
     return FILE_IO_OK;

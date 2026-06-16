@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <assert.h> // Required for static_assert
 
 #include "Chunk.h"
 
@@ -59,7 +60,8 @@ typedef enum FileIoError {
     FILE_IO_ERR_CORRUPT_SUPERBLOCK, // The FileSuperBlock data is invalid or corrupted.
     FILE_IO_ERR_CORRUPT_CHUNK_HEADER,// A FileChunkHeader data is invalid or corrupted.
 
-    FILE_IO_ERR_ALLOCATION_FAILED   // Memory allocation failed.
+    FILE_IO_ERR_ALLOCATION_FAILED,   // Memory allocation failed.
+    FILE_IO_ERR_RENAME_FAILED        //file rename failure after/during compaction
 } FileIoError;
 
 /*
@@ -111,6 +113,14 @@ typedef struct FileChunkHeader {
     uint8_t  reserved[32]; // Padding for future use; unused in current version.
 } FileChunkHeader;
 
+//Struct to store file metadata to decide whether to carry out file-compaction:
+typedef struct FileStats {
+    uint64_t chunk_count;           //total chunk count
+    uint64_t total_used_slots;      //total number of used slots = number of active slots + tombstones
+    uint64_t total_tombstones;      
+} FileStats;
+
+
 /*
  * File Layout Size Helpers
  *
@@ -133,15 +143,56 @@ typedef struct FileChunkHeader {
 */
 static_assert(sizeof(StudentRecord) == 64, "StudentRecord must be exactly 64 bytes");
 
-//Public File Operation Functions:
-
-//Loads the chunks from the files during program boot:
+/**
+ * @brief Loads the database from a backing file into memory.
+ *
+ * This function is typically called once during application startup to
+ * initialize the `ChunkManager` with data from the persistent storage.
+ * It handles file opening, superblock validation, and reading all chunks.
+ *
+ * @param path    The file path to the database backing file.
+ * @param manager Pointer to the `ChunkManager` structure to populate with loaded data.
+ * @return        `FILE_IO_OK` on successful load, or an appropriate `FileIoError` code on failure.
+ */
 FileIoError file_io_load(const char *path, ChunkManager *manager);
 
-//Flushes the chunks to the files during program shutdown:
+/**
+ * @brief Saves the current state of the `ChunkManager` to the database backing file.
+ *
+ * This function is typically called during a save operation or before application
+ * shutdown. It writes only 'dirty' (modified) chunks back to disk and updates
+ * the `FileSuperBlock`.
+ *
+ * @param path    The file path to the database backing file.
+ * @param manager Pointer to the `ChunkManager` containing the data to save.
+ * @return        `FILE_IO_OK` on successful save, or an appropriate `FileIoError` code on failure.
+ */
 FileIoError file_io_save(const char *path, ChunkManager *manager);
 
-//Converts error message to string format:
+/**
+ * @brief Converts a `FileIoError` enumeration value into a human-readable string.
+ * @param error The `FileIoError` code to convert.
+ * @return      A constant string literal describing the error.
+ */
 const char *file_io_error_string(FileIoError error);
+
+/**
+ * @brief Reads file statistics (metadata) from the superblock without loading all chunks.
+ * @param path  The file path to the database backing file.
+ * @param stats Pointer to a `FileStats` structure to populate with the read statistics.
+ * @return      `FILE_IO_OK` on success, or an appropriate `FileIoError` code on failure.
+ */
+FileIoError file_io_read_stats(const char *path, FileStats *stats);
+
+/**
+ * @brief Compacts the database file by removing tombstoned records and rewriting
+ *        live records into a new, optimized file layout.
+ *
+ * This function creates a temporary compacted file, copies only active records,
+ * and then replaces the original file with the compacted version.
+ * @param path The file path to the database backing file to compact.
+ * @return     `FILE_IO_OK` on successful compaction, or an appropriate `FileIoError` code on failure.
+ */
+FileIoError file_io_compact(const char *path);
 
 #endif
