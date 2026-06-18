@@ -147,7 +147,7 @@ AvlError avl_init(AVLIndex *index, Arena *arena);
 
 AvlError avl_build_from_entries(
     AVLIndex *index,
-    const AVLEntry *entries,
+    AVLEntry *entries,
     size_t count
 );
 
