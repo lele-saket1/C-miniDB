@@ -311,19 +311,19 @@ These choices keep the system understandable while still demonstrating important
 The core storage engine modules are implemented or designed around the following components:
 
 ```text
-chunk layout
-file I/O
-boot compaction
-arena allocation
-radix index
-AVL index
-engine coordination
+chunk layout (implemented)
+file I/O (implemented)
+boot compaction (implemented)
+arena allocation (implemented)
+radix index (implemented)
+AVL index (implemented)
+engine coordination (implemented)
+shell command module (implemented)
 ```
 
 The remaining immediate work is:
 
 ```text
-shell command module
 test cases
 ```
 
@@ -335,19 +335,43 @@ The intended Version 1 shell surface is:
 
 ```text
 help
-insert <id> <gpa> <name>
+insert <id>,<gpa>,<name>
 insert_batch <file_path>
 find <id>
 delete <id>
-update_name <id> <new_name>
-update_gpa <id> <new_gpa>
-range <min_gpa> <max_gpa>
+update_name <id>,<new_name>
+update_gpa <id>,<new_gpa>
+range <min_gpa>,<max_gpa>
 save
 save_exit
 ```
 
 There is no plain `exit` command. Exiting should go through `save_exit` so the engine has a clean persistence and teardown path.
 
+## Building and Running
+
+To build the FRASE executable, navigate to the project root directory and use a C compiler like GCC:
+
+```bash
+gcc -Wall -Wextra -pedantic -std=c11 -g -O2 \
+    main.c AVL.c arena.c engine.c file_io.c radix.c shell.c \
+    -o frase -lm
+```
+
+This command compiles all the `.c` source files and links them into an executable named `frase`.
+
+Once built, you can run the `frase` application by providing a database file path as an argument. If the file does not exist, FRASE will create it.
+
+```bash
+# Run with a new or existing database file named 'my_database.db'
+./frase my_database.db
+```
+
+You will then be presented with the `frase>` shell prompt, where you can enter commands like `insert`, `find`, `range`, `save_exit`, etc. Type `help` for a list of available commands.
+
+```
+frase> help
+```
 ## License
 
 No license has been selected yet.

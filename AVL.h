@@ -111,13 +111,11 @@ typedef struct AVLIndex {
     size_t   node_count; // Number of active (non-deleted) nodes in the tree.
 } AVLIndex;
 
-/*
-    avl_init
-
-    Initializes an empty AVL index.
-
- * Initializes an empty `AVLIndex` structure.
+/**
+ * @brief Initializes an empty `AVLIndex` structure.
+ *
  * The provided `arena` must be initialized by the caller before this function is invoked.
+ * The AVL module uses the arena for `AVLNode` allocation but does not own or destroy it.
  *
  * @param index A pointer to the `AVLIndex` structure to initialize.
  * @param arena A pointer to the `Arena` instance to be used for node allocations.
@@ -125,70 +123,43 @@ typedef struct AVLIndex {
 */
 AvlError avl_init(AVLIndex *index, Arena *arena);
 
-/*
-    avl_entry_compare
-
-    Comparator for qsort().
-
-    Orders AVLEntry values by:
-
-        gpa ascending
-        id ascending if GPA is equal
-
- * Compares two `AVLEntry` structures based on the AVL tree's ordering rules.
- * This function is exposed to allow the database engine to sort temporary
- * arrays (e.g., during boot-time index construction) consistently with the
- * AVL tree's internal ordering.
+/**
+ * @brief Builds a balanced AVL tree from a pre-existing array of `AVLEntry` values.
  *
- * @param left  Pointer to the first `AVLEntry` for comparison.
- * @param right Pointer to the second `AVLEntry` for comparison.
+ * This function is designed for efficient, one-time, boot-time construction of the index.
+ * It sorts the `entries` array in-place and then builds a perfectly balanced tree in O(n) time.
+ * It should not be used for runtime insertions.
+ *
+ * @param index   A pointer to the `AVLIndex` to build.
+ * @param entries A pointer to an array of `AVLEntry` values. This array will be modified (sorted).
+ * @param count   The number of entries in the array.
+ * @return        `AVL_OK` on success, or an `AvlError` code on failure.
 */
-
-
 AvlError avl_build_from_entries(
     AVLIndex *index,
     AVLEntry *entries,
     size_t count
 );
 
-/*
- * avl_insert
+/**
+ * @brief Inserts a single `AVLEntry` into the AVL tree.
  *
- * Inserts a single `AVLEntry` into the AVL tree. This function is designed
- * for runtime insertions, typically after the database engine has appended
- * a new record into the chunk system.
- *
- * The insertion process involves standard AVL tree insertion logic, including
- * rotations to maintain the tree's balance.
+ * This function is designed for runtime insertions. It uses standard AVL insertion
+ * logic, including rotations to maintain tree balance.
  *
  * @param index A pointer to the `AVLIndex` to insert into.
  * @param entry The `AVLEntry` containing the key and location to insert.
  * @return      `AVL_OK` on success, `AVL_ERR_DUPLICATE_KEY` if the key already
  *              exists, or an `AvlError` code on failure (e.g., allocation).
 */
-
 AvlError avl_insert(AVLIndex *index, AVLEntry entry);
 
-/*
-    avl_delete
-
-    Deletes one key from the AVL tree.
-
-    The key is:
-
-        gpa + id
-
-    This is used for:
-        normal delete
-        GPA update, where old key is deleted and new key is inserted
-
- * Deletes a specific key (composed of `gpa` and `id`) from the AVL tree.
- * This function is used for both logical record deletion and for updating
- * a record's GPA (by deleting the old key and inserting a new one).
+/**
+ * @brief Deletes a specific key (composed of `gpa` and `id`) from the AVL tree.
  *
- * Note: This operation marks the node as logically deleted but does not
- * free the underlying `AVLNode` memory from the arena. The memory remains
- * allocated until the entire arena is destroyed during application teardown.
+ * This is used for both logical record deletion and for updating a record's GPA
+ * (which involves deleting the old key and inserting a new one). This operation
+ * does not free the underlying `AVLNode` memory from the arena.
  *
  * @param index A pointer to the `AVLIndex` from which to delete.
  * @param gpa   The GPA component of the key to delete.
@@ -196,41 +167,30 @@ AvlError avl_insert(AVLIndex *index, AVLEntry entry);
  * @return      `AVL_OK` on success, `AVL_ERR_NOT_FOUND` if the key is not
  *              present, or an `AvlError` code on failure.
 */
-
 AvlError avl_delete(AVLIndex *index, float gpa, uint32_t id);
 
-/*
-    avl_count_range
-
-    Counts how many records fall inside a GPA range.
-
-    This is the first pass of the range-query strategy.
- * Counts the number of records whose GPA falls within a specified inclusive range
- * (`min_gpa <= gpa <= max_gpa`). This function serves as the first pass in a
- * two-step range query strategy.
+/**
+ * @brief Counts the number of records whose GPA falls within a specified inclusive range.
+ *
+ * This serves as the first pass in a two-step range query, allowing the caller
+ * to pre-allocate an exact-size array for the results.
  *
  * @param index   A pointer to the `AVLIndex` to query.
  * @param min_gpa The lower bound (inclusive) of the GPA range.
  * @param max_gpa The upper bound (inclusive) of the GPA range.
-
-    The engine can use the returned count to allocate an exact-size
-    RecordLocation array before calling avl_range_query().
+ * @return        The count of matching records.
 */
-
 size_t avl_count_range(
     const AVLIndex *index,
     float min_gpa,
     float max_gpa
 );
 
-/*
-    avl_range_query
-
- * Fills a caller-provided array with `RecordLocation` values for all records
- * whose GPA falls within the specified inclusive range (`min_gpa <= gpa <= max_gpa`).
- * This is the second pass of the range query strategy, following `avl_count_range`.
+/**
+ * @brief Fills a caller-provided array with `RecordLocation` values for all records
+ *        within the specified inclusive GPA range.
  *
- * The results are populated in ascending order of (GPA, ID).
+ * This is the second pass of the range query. Results are sorted by (GPA, ID).
  *
  * @param index         A pointer to the `AVLIndex` to query.
  * @param min_gpa       The lower bound (inclusive) of the GPA range.
@@ -239,14 +199,11 @@ size_t avl_count_range(
  *                      `RecordLocation` values will be stored.
  * @param out_capacity  The maximum number of `RecordLocation` slots available
  *                      in `out_locations`.
- * @param out_count     A pointer to a `size_t` variable that will receive the
- *                      actual number of `RecordLocation` values written to
- *                      `out_locations`.
-
-    If the output array is too small, the function returns
-    AVL_ERR_OUTPUT_CAPACITY.
+ * @param out_count     A pointer to a `size_t` that will receive the actual number
+ *                      of `RecordLocation` values written.
+ * @return              `AVL_OK` on success, or `AVL_ERR_OUTPUT_CAPACITY` if the
+ *                      output array is too small.
 */
-
 AvlError avl_range_query(
     const AVLIndex *index,
     float min_gpa,
@@ -256,17 +213,12 @@ AvlError avl_range_query(
     size_t *out_count
 );
 
-/*
- * avl_error_string
- *
+/**
  * Converts an `AvlError` enumeration value into a human-readable string.
- * This function is primarily intended for logging, debugging, or displaying
- * error messages.
- 
+ *
  * @param error The `AvlError` code to convert.
  * @return      A constant string literal describing the error.
 */
-
 const char *avl_error_string(AvlError error);
 
 #endif

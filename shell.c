@@ -371,21 +371,6 @@ static void shell_print_prompt(void)
     fflush(stdout);
 }
 
-static bool shell_read_line(char *line, size_t line_size)
-/**
- * @brief Reads a line of input from stdin.
- * @param line      Buffer to store the read line.
- * @param line_size Maximum size of the buffer.
- * @return          `true` if a line was successfully read, `false` otherwise (e.g., EOF).
- */
-{
-    if (line == NULL || line_size == 0) {
-        return false;
-    }
-
-    return fgets(line, (int)line_size, stdin) != NULL;
-}
-
 /**
  * @brief Removes trailing newline characters from a string.
  * @param line The string to trim.
@@ -404,6 +389,21 @@ static void shell_trim_newline(char *line)
         line[length - 1] = '\0';
         length--;
     }
+}
+
+/**
+ * @brief Reads a line of input from stdin.
+ * @param line      Buffer to store the read line.
+ * @param line_size Maximum size of the buffer.
+ * @return          `true` if a line was successfully read, `false` otherwise (e.g., EOF).
+ */
+static bool shell_read_line(char *line, size_t line_size)
+{
+    if (line == NULL || line_size == 0) {
+        return false;
+    }
+
+    return fgets(line, (int)line_size, stdin) != NULL;
 }
 
 /**
@@ -1291,16 +1291,21 @@ static bool shell_is_valid_id(uint32_t id)
     return id != FRASE_TOMBSTONE_ID;
 }
 
-static bool shell_is_valid_gpa(float gpa)
-{
 /**
  * @brief Checks if a `float` GPA is within the valid range [0.0f, 10.0f].
  * @param gpa The GPA to check.
  * @return    `true` if valid, `false` otherwise.
  */
+static bool shell_is_valid_gpa(float gpa)
+{
     return gpa >= 0.0f && gpa <= 10.0f;
 }
 
+/**
+ * @brief Checks if a name string is valid (not NULL, not empty, and within size limits).
+ * @param name The name string to check.
+ * @return     `true` if valid, `false` otherwise.
+ */
 static bool shell_is_valid_name(const char *name)
 {
     if (name == NULL) {
@@ -1312,16 +1317,15 @@ static bool shell_is_valid_name(const char *name)
     }
 
     return strlen(name) < FRASE_STUDENT_NAME_SIZE;
-/**
- * @brief Checks if a name string is valid (not NULL, not empty, and within size limits).
- * @param name The name string to check.
- * @return     `true` if valid, `false` otherwise.
- */
-
-
-
 }
-
+/**
+ * @brief Loads records from a batch file into a dynamically allocated array.
+ * @param path         Path to the batch file.
+ * @param out_records  Pointer to a `StudentRecord` array pointer to store loaded records.
+ * @param out_count    Pointer to store the number of loaded records.
+ * @param out_error_line Pointer to store the line number where a parsing error occurred.
+ * @return             `SHELL_BATCH_LOAD_OK` on success, or an error status.
+ */
 static ShellBatchLoadStatus shell_load_batch_file(const char *path, StudentRecord **out_records, size_t *out_count, size_t *out_error_line)
 {
     FILE *file;
@@ -1331,18 +1335,9 @@ static ShellBatchLoadStatus shell_load_batch_file(const char *path, StudentRecor
     size_t count;
     size_t line_number;
 
-/**
- * @brief Loads records from a batch file into a dynamically allocated array.
- * @param path         Path to the batch file.
- * @param out_records  Pointer to a `StudentRecord` array pointer to store loaded records.
- * @param out_count    Pointer to store the number of loaded records.
- * @param out_error_line Pointer to store the line number where a parsing error occurred.
- * @return             `SHELL_BATCH_LOAD_OK` on success, or an error status.
- */
     if (path == NULL || out_records == NULL || out_count == NULL || out_error_line == NULL) {
         return SHELL_BATCH_LOAD_PARSE_FAILED;
     }
-
     file = fopen(path, "r");
 
     if (file == NULL) {
