@@ -8,27 +8,30 @@
  * @brief Main entry point for the FRASE database shell application.
  *
  * This file initializes the FRASE engine, handles command-line arguments
- * for the database file path, and then enters the interactive shell loop.
+ * for the database file path (or default if not specified), and then enters the interactive shell loop.
  * It manages the engine's lifecycle from booting to shutdown.
  */
 
-/**
- * @brief Main function for the FRASE database shell.
- * @param argc The number of command-line arguments.
- * @param argv An array of command-line argument strings.
- * @return     0 on successful execution and graceful exit, 1 on error.
- */
 int main(int argc, char **argv)
 {
     Engine engine;
     EngineError error;
+    const char *db_path = NULL;
 
-    if (argc != 2) {
-        fprintf(stderr, "Usage: frase <database_file>\n");
+    // If a command-line argument is given, use it. 
+    // Otherwise, fallback to a sensible default hardcoded filename.
+    if (argc == 2) {
+        db_path = argv[1];
+    } else if (argc == 1) {
+        db_path = "my_database.db";
+        printf("No database file specified. Defaulting to '%s'\n", db_path);
+    } else {
+        // If they provide 3 or more arguments, show usage instructions.
+        fprintf(stderr, "Usage: frase [<database_file>]\n");
         return 1;
     }
 
-    error = engine_boot(&engine, argv[1]);
+    error = engine_boot(&engine, db_path);
 
     if (error != ENGINE_OK) {
         fprintf(stderr, "Failed to boot FRASE: %s\n", engine_error_string(error));
